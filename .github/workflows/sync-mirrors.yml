@@ -11,6 +11,7 @@ jobs:
   sync-atomgit-code:
     name: Sync code to AtomGit
     runs-on: ubuntu-latest
+    if: github.repository == 'FB208/OpenBidKit_Yibiao'
     concurrency:
       group: atomgit-code-sync
       cancel-in-progress: false
@@ -36,6 +37,7 @@ jobs:
   sync-gitee-code:
     name: Sync code to Gitee
     runs-on: ubuntu-latest
+    if: github.repository == 'FB208/OpenBidKit_Yibiao'
     concurrency:
       group: gitee-code-sync
       cancel-in-progress: false
