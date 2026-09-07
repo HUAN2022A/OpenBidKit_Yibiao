@@ -24,6 +24,8 @@ const duplicateCheckSupportedExtensions = new Set(['.doc', '.docx', '.wps', '.pd
 const remoteImageTimeoutMs = 10000;
 const markdownImagePattern = /!\[(?<alt>[^\]]*)\]\((?<target><[^>]+>|[^)\s]+)(?<title>\s+"[^"]*")?\)/gi;
 const htmlImageSrcPattern = /(<img\b[^>]*?\bsrc=["'])(?<src>[^"']+)(["'][^>]*>)/gi;
+/** 按文档出现顺序同时匹配 Markdown 图片语法与 <img> 标签，匹配范围与上述两个模式一致。 */
+const markdownHtmlImagePattern = /!\[(?<alt>[^\]]*)\]\((?<target><[^>]+>|[^)\s]+)(?:\s+"[^"]*")?\)|<img\b[^>]*?\bsrc=["'](?<src>[^"']+)["'][^>]*>/gi;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -502,6 +504,38 @@ async function rewriteMarkdownImages(markdown, assets, context = {}) {
   return result;
 }
 
+/** 从 <img> 标签原文中提取 alt 属性文本，无 alt 属性时返回空串。 */
+function extractHtmlImageAlt(html) {
+  const match = /\balt=["']([^"']*)["']/i.exec(String(html || ''));
+  return match ? match[1] : '';
+}
+
+/**
+ * 提取 Markdown 中出现的全部图片并落盘为导入资产，返回图片资产清单。
+ * 复用 rewriteMarkdownImages 的解析链路（逐张调用 resolveImageToAssetUrl），
+ * 支持 data URL、远程 http(s)、zip 包内引用、本地相对路径四种来源，以及
+ * `![图注](引用)` 与 `<img src="引用">` 两种语法；已改写为 yibiao-asset://
+ * 的引用会原样返回，不会重复落盘。
+ * 返回数组元素为 { asset_url, alt, originalRef }，按图片在文中的出现顺序
+ * 排列；解析失败的图片（远程下载失败、本地文件缺失等）会被跳过。
+ */
+async function extractImagesFromMarkdown(markdown, assets, context = {}) {
+  const text = String(markdown || '');
+  const items = [];
+  for (const match of [...text.matchAll(markdownHtmlImagePattern)]) {
+    const isHtmlImage = match.groups?.src !== undefined;
+    const originalRef = cleanMarkdownImageTarget(isHtmlImage ? match.groups.src : (match.groups?.target || ''));
+    const assetUrl = await resolveImageToAssetUrl(originalRef, assets, context);
+    if (!assetUrl) continue;
+    items.push({
+      asset_url: assetUrl,
+      alt: isHtmlImage ? extractHtmlImageAlt(match[0]) : (match.groups?.alt || ''),
+      originalRef,
+    });
+  }
+  return items;
+}
+
 async function replaceMatchesAsync(text, pattern, createReplacement) {
   const matches = [...String(text || '').matchAll(pattern)];
   if (!matches.length) return text;
@@ -796,6 +830,7 @@ const config = configStore ? configStore.load() : { components: { file_parser: {
 
 module.exports = {
   createFileService,
+  extractImagesFromMarkdown,
   parseDocumentWithConfig,
   resolveFileParser,
 };

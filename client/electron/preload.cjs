@@ -151,6 +151,7 @@ const bridge = {
   knowledgeBase: {
     list: () => ipcRenderer.invoke('knowledge-base:list'),
     search: (request) => ipcRenderer.invoke('knowledge-base:search', request),
+    listImageItems: (request) => ipcRenderer.invoke('knowledge-base:list-image-items', request),
     createFolder: (name) => ipcRenderer.invoke('knowledge-base:create-folder', name),
     renameFolder: (folderId, name) => ipcRenderer.invoke('knowledge-base:rename-folder', folderId, name),
     reorderFolder: (draggedFolderId, targetFolderId, position) => ipcRenderer.invoke('knowledge-base:reorder-folder', draggedFolderId, targetFolderId, position),
@@ -232,6 +233,7 @@ const bridge = {
     create: (config) => ipcRenderer.invoke('templates:create', config),
     update: (templateId, config) => ipcRenderer.invoke('templates:update', templateId, config),
     delete: (templateId) => ipcRenderer.invoke('templates:delete', templateId),
+    analyzeWord: () => ipcRenderer.invoke('templates:analyze-word'),
   },
   tasks: {
     startBidSectionExtraction: (payload) => ipcRenderer.invoke('tasks:start-bid-section-extraction', payload),

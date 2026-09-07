@@ -1,0 +1,60 @@
+/* 知识库图片条目：缩略图、图注、类型标签与大图预览（KnowledgeBasePage.tsx） */
+
+.knowledge-item-card.is-image {
+  gap: 10px;
+}
+
+/* 图片条目卡与原文弹层共用的类型标签行 */
+.knowledge-item-image-meta,
+.knowledge-source-image-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.knowledge-item-kind-tag,
+.knowledge-item-image-type-tag {
+  width: fit-content;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: var(--yb-radius-pill);
+}
+
+.knowledge-item-kind-tag {
+  color: var(--yb-primary);
+  background: rgba(33, 116, 253, 0.1);
+}
+
+.knowledge-item-image-type-tag {
+  color: var(--yb-violet);
+  background: rgba(91, 84, 211, 0.1);
+}
+
+/* 图片条目缩略图按钮：点击打开大图预览 */
+.knowledge-item-image-thumb {
+  display: grid;
+  width: 100%;
+  min-height: 96px;
+  place-items: center;
+  padding: 8px;
+  background: linear-gradient(180deg, rgba(248, 250, 253, 0.92), #ffffff);
+  border: 1px solid var(--yb-border-soft);
+  border-radius: var(--yb-radius-md);
+  cursor: zoom-in;
+  transition: border-color var(--yb-duration-fast) ease, box-shadow var(--yb-duration-fast) ease;
+}
+
+.knowledge-item-image-thumb:hover {
+  border-color: rgba(33, 116, 253, 0.35);
+  box-shadow: var(--yb-shadow-sm);
+}
+
+.knowledge-item-image-thumb img {
+  display: block;
+  max-width: 100%;
+  max-height: 240px;
+  object-fit: contain;
+  border-radius: var(--yb-radius-sm);
+}

@@ -60,6 +60,22 @@ export interface CheckResultExportResult {
   message?: string;
 }
 
+export type TemplateWordConfidenceSource = 'rule' | 'ai' | 'default';
+
+export interface TemplateWordAnalysisSummaryItem {
+  group: string;
+  text: string;
+  source: TemplateWordConfidenceSource;
+}
+
+export interface TemplateWordAnalysisResult {
+  config: ExportFormatConfig;
+  summary: TemplateWordAnalysisSummaryItem[];
+  confidenceByField: Record<string, TemplateWordConfidenceSource>;
+  sourceFileName: string;
+  sourceFormat: 'docx' | 'doc' | 'wps';
+}
+
 export interface RequiredOnlineServiceStatus {
   id: string;
   label: string;
@@ -534,6 +550,36 @@ export interface DonationPromptPayload {
   wordExportClicks: number;
 }
 
+/** 图片知识条目（契约：knowledgeBaseStore.listImageItems 返回的条目字段） */
+export interface KnowledgeBaseImageItem {
+  item_id: string;
+  title: string;
+  resume: string;
+  /** 配图类型标签（复用配图规划的 image_type 分类，如“进度网络图”） */
+  image_type?: string;
+  /** 图本体的本地 URL（yibiao-asset:// 协议） */
+  asset_url?: string;
+  source_file?: string;
+  document_id: string;
+  /** 文档原始上传文件名 */
+  file_name: string;
+  folder_name: string;
+  updated_at: string;
+}
+
+export interface KnowledgeBaseListImageItemsRequest {
+  keyword?: string;
+  imageType?: string;
+  page?: number;
+}
+
+export interface KnowledgeBaseListImageItemsPage {
+  items: KnowledgeBaseImageItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface YibiaoBridge {
   appName: string;
   platform: string;
@@ -630,6 +676,7 @@ export interface YibiaoBridge {
   knowledgeBase: {
     list: () => Promise<KnowledgeBaseIndex>;
     search: (request: KnowledgeBaseSearchRequest) => Promise<KnowledgeBaseSearchPage>;
+    listImageItems: (request: KnowledgeBaseListImageItemsRequest) => Promise<KnowledgeBaseListImageItemsPage>;
     createFolder: (name: string) => Promise<KnowledgeFolder>;
     renameFolder: (folderId: string, name: string) => Promise<KnowledgeFolder>;
     reorderFolder: (draggedFolderId: string, targetFolderId: string, position: 'before' | 'after') => Promise<KnowledgeBaseIndexMutationResult>;
@@ -721,6 +768,7 @@ export interface YibiaoBridge {
     create: (config: ExportFormatConfig) => Promise<ExportTemplateRecord>;
     update: (templateId: string, config: ExportFormatConfig) => Promise<ExportTemplateRecord>;
     delete: (templateId: string) => Promise<{ success: boolean; message: string }>;
+    analyzeWord: () => Promise<TemplateWordAnalysisResult>;
   };
   tasks: {
     startBidSectionExtraction: (payload?: unknown) => Promise<unknown>;

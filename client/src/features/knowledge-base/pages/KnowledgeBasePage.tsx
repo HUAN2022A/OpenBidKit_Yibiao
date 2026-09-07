@@ -1,6 +1,7 @@
 import { Profiler, startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { trackPageView } from '../../../shared/analytics/analytics';
+import { consumePendingKnowledgeDocument } from '../../../shared/navigationIntent';
 import { AppDialog, InlineSpinner, isLibreOfficeRequiredMessage, MarkdownFullscreenViewer, MarkdownRenderer, ProgressBar, useDocumentParseNotice, useToast } from '../../../shared/ui';
 import type { KnowledgeAnalysisSnapshot, KnowledgeBaseIndex, KnowledgeBaseSearchPage, KnowledgeBaseSearchResult, KnowledgeDocument, KnowledgeItem } from '../types';
 
@@ -324,6 +325,9 @@ function KnowledgeBasePage() {
     | null
   >(null);
   const [deletingConfirm, setDeletingConfirm] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<{ folderId: string; currentName: string } | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [renaming, setRenaming] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [submittedSearchKeyword, setSubmittedSearchKeyword] = useState('');
   const [searchPage, setSearchPage] = useState<KnowledgeBaseSearchPage | null>(null);
@@ -334,6 +338,9 @@ function KnowledgeBasePage() {
   const documentParseNoticeIdsRef = useRef(new Set<string>());
   const viewerRequestIdRef = useRef(0);
   const viewerTraceRef = useRef<RenderDebugTrace | null>(null);
+  // 图片知识库「查看原文」的定位跳转目标：挂载时消费一次，索引加载完成后自动选中并展开对应文档。
+  const pendingNavigationConsumedRef = useRef(false);
+  const pendingNavigationDocumentIdRef = useRef<string | null>(null);
   const { showToast } = useToast();
   const { showDocumentParseNotice } = useDocumentParseNotice();
 
@@ -358,6 +365,11 @@ function KnowledgeBasePage() {
   }, [viewer?.mode]);
 
   useEffect(() => {
+    // 消费图片知识库写入的定位意图：仅消费一次，StrictMode 下重复执行也不会丢失目标。
+    if (!pendingNavigationConsumedRef.current) {
+      pendingNavigationConsumedRef.current = true;
+      pendingNavigationDocumentIdRef.current = consumePendingKnowledgeDocument();
+    }
     void loadInitialData();
     window.addEventListener('focus', loadDeveloperMode);
     document.addEventListener('visibilitychange', loadDeveloperMode);
@@ -440,6 +452,22 @@ function KnowledgeBasePage() {
         setActiveFolderId((currentId) => (
           data.folders.some((folder) => folder.id === currentId) ? currentId : data.folders[0]?.id || ''
         ));
+      }
+      // 定位跳转：选中目标文档所在文件夹并展开文档；文档缺失或未完成时给出提示。
+      const pendingDocumentId = pendingNavigationDocumentIdRef.current;
+      if (pendingDocumentId && data) {
+        pendingNavigationDocumentIdRef.current = null;
+        const targetDocument = data.documents.find((document) => document.id === pendingDocumentId);
+        if (targetDocument) {
+          setActiveFolderId(targetDocument.folder_id);
+          if (targetDocument.status === 'success') {
+            void openDocument(targetDocument, 'items');
+          } else {
+            showToast('目标文档尚未完成知识整理，请稍后再查看原文', 'info');
+          }
+        } else {
+          showToast('对应知识文档已不存在', 'info');
+        }
       }
     } catch (error) {
       showToast(error instanceof Error ? error.message : '读取知识库失败', 'error');
@@ -683,20 +711,37 @@ function KnowledgeBasePage() {
     }
   };
 
-  const renameFolder = async (folderId: string, currentName: string) => {
-    const name = window.prompt('请输入新的文件夹名称', currentName)?.trim();
-    if (!name || name === currentName) return;
+  const openRenameFolder = (folderId: string, currentName: string) => {
+    setRenameTarget({ folderId, currentName });
+    setRenameValue(currentName);
+  };
 
+  const confirmRenameFolder = async () => {
+    if (!renameTarget || renaming) return;
+    const name = renameValue.trim();
+    if (!name) {
+      showToast('文件夹名称不能为空', 'error');
+      return;
+    }
+    if (name === renameTarget.currentName) {
+      setRenameTarget(null);
+      return;
+    }
+
+    setRenaming(true);
     try {
-      const folder = await window.yibiao?.knowledgeBase.renameFolder(folderId, name);
+      const folder = await window.yibiao?.knowledgeBase.renameFolder(renameTarget.folderId, name);
       if (!folder) return;
       setIndex((prev) => ({
         ...prev,
         folders: prev.folders.map((item) => (item.id === folder.id ? folder : item)),
       }));
       showToast('文件夹已重命名', 'success');
+      setRenameTarget(null);
     } catch (error) {
       showToast(error instanceof Error ? error.message : '重命名文件夹失败', 'error');
+    } finally {
+      setRenaming(false);
     }
   };
 
@@ -1062,7 +1107,7 @@ function KnowledgeBasePage() {
                       </button>
                     </div>
                     <div className="knowledge-folder-actions">
-                      <button type="button" onClick={() => void renameFolder(folder.id, folder.name)}>重命名</button>
+                      <button type="button" onClick={() => openRenameFolder(folder.id, folder.name)}>重命名</button>
                       <button type="button" className="is-danger" onClick={() => void deleteFolder(folder.id, folder.name)}>删除</button>
                     </div>
                   </article>
@@ -1162,6 +1207,36 @@ function KnowledgeBasePage() {
       </div>
 
       <AppDialog
+        open={Boolean(renameTarget)}
+        onOpenChange={(open) => !open && !renaming && setRenameTarget(null)}
+        kicker="知识库"
+        title="重命名文件夹"
+        description={renameTarget ? `原名称：${renameTarget.currentName}` : undefined}
+        actions={(
+          <>
+            <button type="button" className="secondary-action" onClick={() => setRenameTarget(null)} disabled={renaming}>取消</button>
+            <button type="button" className="primary-action" onClick={() => { void confirmRenameFolder(); }} disabled={renaming}>
+              {renaming ? '重命名中...' : '确认重命名'}
+            </button>
+          </>
+        )}
+      >
+        <input
+          autoFocus
+          className="knowledge-rename-input"
+          value={renameValue}
+          onChange={(event) => setRenameValue(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              void confirmRenameFolder();
+            }
+          }}
+          placeholder="输入新的文件夹名称"
+        />
+      </AppDialog>
+
+      <AppDialog
         open={Boolean(deleteConfirm)}
         onOpenChange={(open) => !open && !deletingConfirm && setDeleteConfirm(null)}
         kicker="知识库"
@@ -1217,6 +1292,7 @@ function KnowledgeDocumentViewer({
   const [sourceItem, setSourceItem] = useState<KnowledgeItem | null>(null);
   const [sourceRendering, setSourceRendering] = useState(false);
   const [sourceTrace, setSourceTrace] = useState<RenderDebugTrace | null>(null);
+  const [previewImage, setPreviewImage] = useState<{ src: string; alt: string } | null>(null);
   const renderRequestIdRef = useRef(0);
   const sourceTraceRef = useRef<RenderDebugTrace | null>(null);
   const pendingTargetItemIdRef = useRef(targetItemId);
@@ -1227,6 +1303,7 @@ function KnowledgeDocumentViewer({
     setSourceItem(null);
     setSourceRendering(false);
     setSourceTrace(null);
+    setPreviewImage(null);
     renderRequestIdRef.current += 1;
     pendingTargetItemIdRef.current = targetItemId;
   }, [document.id, mode, targetItemId]);
@@ -1268,6 +1345,11 @@ function KnowledgeDocumentViewer({
     setSourceRendering(false);
     setSourceTrace(null);
   };
+
+  // 打开图片条目的大图预览（复用 shared-markdown.css 的 image-preview-* 弹层样式）。
+  const openImagePreview = useCallback((src: string, alt: string) => {
+    setPreviewImage({ src, alt: alt || '知识库图片' });
+  }, []);
 
   const copyDebugLogs = async () => {
     const logs = window.__knowledgeRenderDebugLogs || [];
@@ -1331,6 +1413,7 @@ function KnowledgeDocumentViewer({
                   item={item}
                   developerMode={developerMode}
                   onOpenSource={() => openSourceItem(item)}
+                  onOpenImage={openImagePreview}
                 />
               )) : <div className="knowledge-empty-box"><strong>暂无知识条目</strong><p>文档完成整理后会显示结果。</p></div>}
             </DebuggableMarkdownContent>
@@ -1377,8 +1460,20 @@ function KnowledgeDocumentViewer({
               rendering={sourceRendering}
               debugTrace={sourceTrace}
               onClose={closeSourceItem}
+              onOpenPreviewImage={openImagePreview}
             />
           )}
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      <Dialog.Root open={Boolean(previewImage)} onOpenChange={(open) => !open && setPreviewImage(null)}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="image-preview-modal" />
+          <Dialog.Content className="image-preview-card">
+            <Dialog.Close className="image-preview-close" type="button" aria-label="关闭图片预览">×</Dialog.Close>
+            <Dialog.Title>{previewImage?.alt || '图片预览'}</Dialog.Title>
+            {previewImage ? <img src={previewImage.src} alt={previewImage.alt} /> : null}
+          </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
     </div>
@@ -1389,13 +1484,33 @@ interface KnowledgeItemCardProps {
   item: KnowledgeItem;
   developerMode: boolean;
   onOpenSource: () => void;
+  onOpenImage: (src: string, alt: string) => void;
 }
 
-function KnowledgeItemCard({ item, developerMode, onOpenSource }: KnowledgeItemCardProps) {
+function KnowledgeItemCard({ item, developerMode, onOpenSource, onOpenImage }: KnowledgeItemCardProps) {
+  // 图片条目渲染缩略图 + 图注 + 类型标签；文字条目保持原有展示。
+  const isImageItem = item.item_kind === 'image' && Boolean(item.asset_url);
   return (
-    <article className="knowledge-item-card">
+    <article className={`knowledge-item-card${isImageItem ? ' is-image' : ''}`}>
       {developerMode && <code className="knowledge-entity-id">条目ID：{item.id}</code>}
       <strong>{item.title}</strong>
+      {isImageItem && (
+        <div className="knowledge-item-image-meta">
+          <span className="knowledge-item-kind-tag">图片条目</span>
+          {item.image_type && <span className="knowledge-item-image-type-tag">{item.image_type}</span>}
+        </div>
+      )}
+      {isImageItem && (
+        <button
+          type="button"
+          className="knowledge-item-image-thumb"
+          title="点击放大查看"
+          aria-label={`放大查看图片：${item.title}`}
+          onClick={() => onOpenImage(item.asset_url || '', item.title)}
+        >
+          <img src={item.asset_url} alt={item.title} loading="lazy" decoding="async" />
+        </button>
+      )}
       <p>{item.resume}</p>
       <button type="button" className="knowledge-item-source-action" onClick={onOpenSource}>查看原文</button>
     </article>
@@ -1408,9 +1523,10 @@ interface KnowledgeItemSourceViewerProps {
   rendering: boolean;
   debugTrace: RenderDebugTrace | null;
   onClose: () => void;
+  onOpenPreviewImage: (src: string, alt: string) => void;
 }
 
-function KnowledgeItemSourceDialog({ item, developerMode, rendering, debugTrace, onClose }: KnowledgeItemSourceViewerProps) {
+function KnowledgeItemSourceDialog({ item, developerMode, rendering, debugTrace, onClose, onOpenPreviewImage }: KnowledgeItemSourceViewerProps) {
   useLayoutEffect(() => {
     if (!developerMode || !debugTrace || !rendering) return;
     logRenderDebug(debugTrace, 'loading:commit');
@@ -1424,13 +1540,30 @@ function KnowledgeItemSourceDialog({ item, developerMode, rendering, debugTrace,
     return () => window.cancelAnimationFrame(frameId);
   }, [debugTrace, developerMode, rendering]);
 
+  // 图片条目的 content 是图引用 Markdown，详情里支持点击放大预览；文字条目保持惰性加载。
+  const isImageItem = item.item_kind === 'image';
+  const handlePreviewImage = useCallback((src: string, alt: string) => {
+    onOpenPreviewImage(src, alt || item.title || '知识库图片');
+  }, [item.title, onOpenPreviewImage]);
+  // content 缺失时兜底用 asset_url 组装图引用，保证图片条目详情仍能看到图。
+  const fallbackImageContent = isImageItem && item.asset_url
+    ? `![${String(item.title || '').replace(/[[\]]/g, '')}](${item.asset_url})`
+    : '';
+  const sourceContent = item.content || fallbackImageContent || '暂无原文内容';
+
   return (
     <Dialog.Content className="knowledge-source-dialog-card knowledge-source-viewer">
       <div className="knowledge-source-head">
         <div>
           <span>知识条目原文</span>
           <Dialog.Title>{item.title}</Dialog.Title>
-          <Dialog.Description>查看该知识条目对应的原始 Markdown 片段。</Dialog.Description>
+          <Dialog.Description>{isImageItem ? '查看该图片条目的图注与原始图片。' : '查看该知识条目对应的原始 Markdown 片段。'}</Dialog.Description>
+          {isImageItem && (
+            <div className="knowledge-source-image-meta">
+              <span className="knowledge-item-kind-tag">图片条目</span>
+              {item.image_type && <span className="knowledge-item-image-type-tag">{item.image_type}</span>}
+            </div>
+          )}
           {developerMode && <code className="knowledge-entity-id">条目ID：{item.id}</code>}
         </div>
         <button type="button" className="secondary-action" onClick={onClose}>关闭</button>
@@ -1446,8 +1579,14 @@ function KnowledgeItemSourceDialog({ item, developerMode, rendering, debugTrace,
           className="markdown-viewer knowledge-source-content"
           title={`${item.title}原文全屏查看`}
           fullscreenChildren={(
-            <MarkdownRenderer enableGfm={false} linkMode="text" linkTextClassName="knowledge-item-link-text" imageMode="lazy">
-              {item.content || '暂无原文内容'}
+            <MarkdownRenderer
+              enableGfm={false}
+              linkMode="text"
+              linkTextClassName="knowledge-item-link-text"
+              imageMode={isImageItem ? 'preview' : 'lazy'}
+              onPreviewImage={isImageItem ? handlePreviewImage : undefined}
+            >
+              {sourceContent}
             </MarkdownRenderer>
           )}
         >
@@ -1457,8 +1596,14 @@ function KnowledgeItemSourceDialog({ item, developerMode, rendering, debugTrace,
             developerMode={developerMode}
             profilerId="knowledge-item-source"
           >
-            <MarkdownRenderer enableGfm={false} linkMode="text" linkTextClassName="knowledge-item-link-text" imageMode="lazy">
-              {item.content || '暂无原文内容'}
+            <MarkdownRenderer
+              enableGfm={false}
+              linkMode="text"
+              linkTextClassName="knowledge-item-link-text"
+              imageMode={isImageItem ? 'preview' : 'lazy'}
+              onPreviewImage={isImageItem ? handlePreviewImage : undefined}
+            >
+              {sourceContent}
             </MarkdownRenderer>
           </DebuggableMarkdownContent>
         </MarkdownFullscreenViewer>

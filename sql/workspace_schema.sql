@@ -4,7 +4,7 @@
 -- 1. 本文件用于开源开发者阅读、评审和排查问题，展示 workspace/yibiao.sqlite 的目标完整表结构。
 -- 2. 用户运行客户端时不需要手动执行本文件。
 -- 3. 客户端运行时建表和升级以 Electron Main 侧 migration 代码为准。
--- 4. 当前运行代码已落地 technical_plan_* v1、duplicate_check_* / rejection_check_* v2、knowledge_* v3、technical_plan_global_fact_groups v4、标段兼容 v5/v6、标段选择 v7、旧待选择标段兼容字段 v8、工作流类型和原方案文件状态 v9、招标解析项选择配置 v10、知识库排序 v11、废标项检查多投标文件 v12、已有方案目录配置 v13、多标段优化状态 v14、导出模板库 v15、多招标文件 v16、全文图片编排 v17、目录字数控制 v18、全局事实补全模式 v22、可行性研究报告 v23 目标结构。
+-- 4. 当前运行代码已落地 technical_plan_* v1、duplicate_check_* / rejection_check_* v2、knowledge_* v4、technical_plan_global_fact_groups v4、标段兼容 v5/v6、标段选择 v7、旧待选择标段兼容字段 v8、工作流类型和原方案文件状态 v9、招标解析项选择配置 v10、知识库排序 v11、废标项检查多投标文件 v12、已有方案目录配置 v13、多标段优化状态 v14、导出模板库 v15、多招标文件 v16、全文图片编排 v17、目录字数控制 v18、全局事实补全模式 v22、可行性研究报告 v23、知识库图片条目 v24、配图复用标注 v25 目标结构。
 -- 5. 每次表结构调整后，需要同步更新本文件和 runtime migration 版本。
 -- 6. 本文件不保存历史版本，每次更新都写入最新目标完整结构。
 
@@ -14,7 +14,7 @@ PRAGMA busy_timeout = 5000;
 
 -- 目标完整结构版本。
 -- 运行时代码应通过 PRAGMA user_version 判断是否需要自动升级。
-PRAGMA user_version = 23;
+PRAGMA user_version = 25;
 
 -- ============================================================================
 -- 技术方案 technical_plan_*（v1 已落地）
@@ -138,7 +138,8 @@ CREATE TABLE IF NOT EXISTS technical_plan_illustration_items (
   generation_error TEXT,
   generation_updated_at TEXT,
   sort_order INTEGER NOT NULL DEFAULT 0,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  reuse_source_json TEXT -- v25 复用历史图来源标注（{ item_id, asset_url, confidence }），未复用为 NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_technical_plan_illustration_items_order
@@ -629,7 +630,7 @@ CREATE INDEX IF NOT EXISTS idx_rejection_check_logic_order
 ON rejection_check_logic_findings(sort_order);
 
 -- ============================================================================
--- 知识库 knowledge_*（v3 目标设计）
+-- 知识库 knowledge_*（v4 目标设计）
 -- ============================================================================
 
 -- 知识库文件夹。
@@ -736,6 +737,10 @@ CREATE TABLE IF NOT EXISTS knowledge_items (
   sort_order INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
+  -- v24 条目类型：text / image；图片条目记录图片类型与资源地址。
+  item_kind TEXT NOT NULL DEFAULT 'text',
+  image_type TEXT,
+  asset_url TEXT,
   FOREIGN KEY (document_id) REFERENCES knowledge_documents(document_id) ON DELETE CASCADE,
   UNIQUE(document_id, item_id)
 );

@@ -3,7 +3,7 @@ const path = require('node:path');
 const Database = require('better-sqlite3');
 const { getWorkspaceDatabasePath } = require('../utils/paths.cjs');
 
-const schemaVersion = 23;
+const schemaVersion = 25;
 
 function createInitialSchema(db) {
   db.exec(`
@@ -1035,6 +1035,17 @@ function createFeasibilityReportSchema(db) {
   `);
 }
 
+// 知识库条目支持图片条目：item_kind 区分 text / image，图片条目记录图片类型与资源地址。
+function addKnowledgeItemImageFields(db) {
+  addColumnIfMissing(db, 'knowledge_items', 'item_kind', "TEXT NOT NULL DEFAULT 'text'");
+  addColumnIfMissing(db, 'knowledge_items', 'image_type', 'TEXT');
+  addColumnIfMissing(db, 'knowledge_items', 'asset_url', 'TEXT');
+}
+
+function addIllustrationReuseSource(db) {
+  addColumnIfMissing(db, 'technical_plan_illustration_items', 'reuse_source_json', 'TEXT');
+}
+
 const schemaHealthTableGroups = [
   {
     version: 1,
@@ -1459,6 +1470,16 @@ const migrations = [
     version: 23,
     description: '新增可行性研究报告工作区表结构',
     up: createFeasibilityReportSchema,
+  },
+  {
+    version: 24,
+    description: '知识库条目支持图片条目',
+    up: addKnowledgeItemImageFields,
+  },
+  {
+    version: 25,
+    description: '配图计划持久化复用来源标注',
+    up: addIllustrationReuseSource,
   },
 ];
 

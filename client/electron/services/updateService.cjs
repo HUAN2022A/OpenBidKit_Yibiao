@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const http = require('node:http');
 const https = require('node:https');
 const path = require('node:path');
+const configStoreModule = require('./configStore.cjs');
 
 const GITHUB_RELEASE_API = 'https://api.github.com/repos/FB208/OpenBidKit_Yibiao/releases/latest';
 const GITHUB_RELEASE_DOWNLOAD_URL = 'https://github.com/FB208/OpenBidKit_Yibiao/releases/latest';
@@ -100,6 +101,11 @@ function getUpdateChannel(configStore) {
   }
   const config = configStore.load();
   return normalizeUpdateChannel(config.update_channel);
+}
+
+// 判断配置是否启用离线模式：统一使用 configStore 的权威判断函数（缺省视为未启用）。
+function isOfflineModeEnabled(config) {
+  return configStoreModule.isOfflineModeEnabled(config);
 }
 
 function requestJson(url, label, headers = {}) {
@@ -565,6 +571,10 @@ async function runUpdateCheck(options = {}) {
 async function checkAndDownloadUpdate(options = {}) {
   const { app } = options;
   const channel = getUpdateChannel(options.configStore);
+  // 离线模式下静默跳过更新检查与下载，不发起任何网络请求。
+  if (isOfflineModeEnabled(options.configStore?.load?.())) {
+    return getDisabledResult();
+  }
   if (!app?.isPackaged) {
     return getDisabledResult();
   }
@@ -595,6 +605,7 @@ async function checkAndDownloadUpdate(options = {}) {
   return activeUpdateCheckPromise;
 }
 
+// 手动下载更新入口：复用 checkAndDownloadUpdate，离线拦截在其内部生效。
 function triggerUpdateDownload(options) {
   return checkAndDownloadUpdate(options);
 }

@@ -16,6 +16,16 @@ function formatHours(milliseconds: number) {
   return value.endsWith('.0') ? value.slice(0, -2) : value;
 }
 
+/** 读取配置并判断离线模式：旧数据缺省按 false，配置读取失败时保持在线行为 */
+async function readOfflineMode(): Promise<boolean> {
+  try {
+    const config = await window.yibiao?.config?.load();
+    return Boolean(config && (config as { offline_mode?: boolean }).offline_mode === true);
+  } catch {
+    return false;
+  }
+}
+
 /** 全局承接累计使用提醒、创建打赏订单和支付结果确认。 */
 export function DonationPromptProvider({ children }: { children: ReactNode }) {
   const { showToast } = useToast();
@@ -29,10 +39,29 @@ export function DonationPromptProvider({ children }: { children: ReactNode }) {
   const [submitting, setSubmitting] = useState(false);
   const [polling, setPolling] = useState(false);
   const [error, setError] = useState('');
+  const [offlineMode, setOfflineMode] = useState(false);
+  const offlineModeRef = useRef(false);
   const submitRequestId = useRef(0);
+
+  // 离线模式守卫：读取配置，离线时不再发起打赏弹窗与支付相关请求
+  useEffect(() => {
+    let canceled = false;
+    void (async () => {
+      const offline = await readOfflineMode();
+      if (canceled) return;
+      offlineModeRef.current = offline;
+      setOfflineMode(offline);
+    })();
+    return () => {
+      canceled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const unsubscribePrompt = window.yibiao.donation.onPrompt((payload) => {
+      if (offlineModeRef.current) {
+        return; // 离线模式：静默跳过打赏弹窗
+      }
       setPrompt(payload);
       setOpen(true);
       setError('');
@@ -58,7 +87,7 @@ export function DonationPromptProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const merchantOrderNo = intent?.merchant_order_no;
-    if (!merchantOrderNo || ['paid', 'failed', 'closed'].includes(intent.status || '') || (orderExpiresAt > 0 && Date.now() >= orderExpiresAt)) return undefined;
+    if (offlineMode || !merchantOrderNo || ['paid', 'failed', 'closed'].includes(intent.status || '') || (orderExpiresAt > 0 && Date.now() >= orderExpiresAt)) return undefined;
 
     let stopped = false;
     let timer = 0;
@@ -90,11 +119,11 @@ export function DonationPromptProvider({ children }: { children: ReactNode }) {
       stopped = true;
       window.clearTimeout(timer);
     };
-  }, [intent?.merchant_order_no, intent?.status, orderExpiresAt]);
+  }, [intent?.merchant_order_no, intent?.status, orderExpiresAt, offlineMode]);
 
   useEffect(() => {
     const merchantOrderNo = intent?.merchant_order_no;
-    if (!merchantOrderNo || !orderExpiresAt || ['paid', 'failed', 'closed'].includes(intent.status || '')) return undefined;
+    if (offlineMode || !merchantOrderNo || !orderExpiresAt || ['paid', 'failed', 'closed'].includes(intent.status || '')) return undefined;
 
     let stopped = false;
     const expireOrder = async () => {
@@ -116,7 +145,7 @@ export function DonationPromptProvider({ children }: { children: ReactNode }) {
       stopped = true;
       window.clearTimeout(timer);
     };
-  }, [intent?.merchant_order_no, intent?.status, orderExpiresAt]);
+  }, [intent?.merchant_order_no, intent?.status, orderExpiresAt, offlineMode]);
 
   const closeDialog = () => {
     submitRequestId.current += 1;
@@ -133,6 +162,10 @@ export function DonationPromptProvider({ children }: { children: ReactNode }) {
 
   const submitDonation = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (offlineMode) {
+      setError('离线模式已开启，暂不支持在线打赏。');
+      return; // 离线模式：不请求打赏接口，仅展示离线提示
+    }
     const requestId = ++submitRequestId.current;
     setSubmitting(true);
     setError('');
@@ -179,7 +212,12 @@ export function DonationPromptProvider({ children }: { children: ReactNode }) {
         ) : undefined}
         cardClassName="donation-dialog-card"
       >
-        {intent && ['failed', 'closed'].includes(intent.status || '') ? (
+        {offlineMode ? (
+          <div className="donation-expired-panel">
+            <strong>离线模式已开启</strong>
+            <p>当前处于离线模式，暂不支持在线打赏。感谢你的支持！</p>
+          </div>
+        ) : intent && ['failed', 'closed'].includes(intent.status || '') ? (
           <div className="donation-expired-panel">
             <strong>二维码已失效</strong>
             <p>旧订单已停止展示，请重新选择金额生成新的二维码。</p>
@@ -233,7 +271,7 @@ export function DonationPromptProvider({ children }: { children: ReactNode }) {
 
         <div className="donation-dialog-actions">
           <button type="button" className="secondary-action" onClick={closeDialog}>暂时不用</button>
-          {intent ? (
+          {offlineMode ? null : intent ? (
             <button type="button" className="primary-action" onClick={resetOrder}>重新选择</button>
           ) : (
             <button type="submit" form="donation-prompt-form" className="primary-action donation-submit" disabled={submitting}>

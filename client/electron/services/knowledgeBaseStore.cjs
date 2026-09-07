@@ -4,7 +4,7 @@ const path = require('node:path');
 const { getKnowledgeBaseDir } = require('../utils/paths.cjs');
 
 const documentStatuses = ['pending', 'copying', 'converting', 'extracting', 'ready_for_matching', 'matching', 'recovering', 'analyzing', 'saving', 'success', 'error'];
-const documentStepKeys = ['copy_source', 'convert_markdown', 'build_blocks', 'extract_first_items', 'extract_supplement_items', 'merge_candidates', 'match_batches', 'recover_missing', 'save_result'];
+const documentStepKeys = ['copy_source', 'convert_markdown', 'build_blocks', 'extract_first_items', 'extract_supplement_items', 'merge_candidates', 'extract_image_items', 'match_batches', 'recover_missing', 'save_result'];
 const stepStatuses = ['idle', 'running', 'success', 'error'];
 function now() {
   return new Date().toISOString();
@@ -259,6 +259,8 @@ function createKnowledgeBaseStore({ app, db }) {
     if (!normalizedKeyword) return { items: [], total: 0, page: 1, pageSize };
 
     const lowerKeyword = normalizedKeyword.toLocaleLowerCase();
+    // 图条目（item_kind='image'）的 content 是图片引用 URL 语法，不参与子串匹配；
+    // 图条目仅按 title / resume 参与匹配，文件名匹配仍然生效。
     const matchSql = `
       FROM knowledge_items i
       INNER JOIN knowledge_documents d ON d.document_id = i.document_id
@@ -268,7 +270,10 @@ function createKnowledgeBaseStore({ app, db }) {
           instr(lower(COALESCE(d.file_name, '')), @keyword) > 0
           OR instr(lower(COALESCE(i.title, '')), @keyword) > 0
           OR instr(lower(COALESCE(i.resume, '')), @keyword) > 0
-          OR instr(lower(COALESCE(i.content, '')), @keyword) > 0
+          OR (
+            COALESCE(i.item_kind, 'text') != 'image'
+            AND instr(lower(COALESCE(i.content, '')), @keyword) > 0
+          )
         )
     `;
     const { rows, total, currentPage } = db.transaction(() => {
@@ -276,13 +281,13 @@ function createKnowledgeBaseStore({ app, db }) {
       const currentPage = Math.min(page, Math.max(1, Math.ceil(total / pageSize)));
       const rows = total ? db.prepare(`
       SELECT d.document_id, d.folder_id, d.file_name, f.name AS folder_name,
-             i.item_id, i.title, i.resume, i.content
+             i.item_id, i.title, i.resume, i.content, i.item_kind, i.image_type, i.asset_url
       ${matchSql}
       ORDER BY
         CASE
           WHEN instr(lower(COALESCE(i.title, '')), @keyword) > 0 THEN 0
           WHEN instr(lower(COALESCE(i.resume, '')), @keyword) > 0 THEN 1
-          WHEN instr(lower(COALESCE(i.content, '')), @keyword) > 0 THEN 2
+          WHEN COALESCE(i.item_kind, 'text') != 'image' AND instr(lower(COALESCE(i.content, '')), @keyword) > 0 THEN 2
           WHEN instr(lower(COALESCE(d.file_name, '')), @keyword) > 0 THEN 3
           ELSE 4
         END,
@@ -306,7 +311,7 @@ function createKnowledgeBaseStore({ app, db }) {
     const items = rows.map((row) => {
       const titleMatched = String(row.title || '').toLocaleLowerCase().includes(lowerKeyword);
       const resumeMatched = String(row.resume || '').toLocaleLowerCase().includes(lowerKeyword);
-      const contentMatched = String(row.content || '').toLocaleLowerCase().includes(lowerKeyword);
+      const contentMatched = String(row.item_kind || 'text') !== 'image' && String(row.content || '').toLocaleLowerCase().includes(lowerKeyword);
       const matchField = titleMatched ? 'title' : resumeMatched ? 'resume' : contentMatched ? 'content' : 'file_name';
       const snippetSource = matchField === 'title'
         ? row.title
@@ -323,10 +328,72 @@ function createKnowledgeBaseStore({ app, db }) {
         item_id: row.item_id,
         title: row.title,
         resume: row.resume,
+        item_kind: row.item_kind || 'text',
+        image_type: row.image_type || undefined,
+        asset_url: row.asset_url || undefined,
         snippet: createSnippet(snippetSource),
         match_field: matchField,
       };
     });
+    return { items, total, page: currentPage, pageSize };
+  }
+
+  // 图片条目聚合查询：仅列出解析成功文档中的图片条目（item_kind='image'），
+  // content 是图片引用 URL 语法，不参与关键词匹配（与 search 对图条目规则一致）。
+  function listImageItems({ keyword, imageType, page } = {}) {
+    const pageSize = 60;
+    const normalizedKeyword = String(keyword || '').trim();
+    const normalizedImageType = String(imageType || '').trim();
+    const requestedPage = Math.max(1, Math.floor(Number(page) || 1));
+
+    const fromSql = `
+      FROM knowledge_items i
+      INNER JOIN knowledge_documents d ON d.document_id = i.document_id
+      INNER JOIN knowledge_folders f ON f.folder_id = d.folder_id
+      WHERE i.item_kind = 'image'
+        AND d.status = 'success'
+    `;
+    const conditions = [];
+    const params = {};
+    if (normalizedImageType) {
+      conditions.push('i.image_type = @imageType');
+      params.imageType = normalizedImageType;
+    }
+    if (normalizedKeyword) {
+      conditions.push(`(
+        instr(lower(COALESCE(i.title, '')), @keyword) > 0
+        OR instr(lower(COALESCE(i.resume, '')), @keyword) > 0
+      )`);
+      params.keyword = normalizedKeyword.toLocaleLowerCase();
+    }
+    const whereSql = conditions.length ? ` AND ${conditions.join(' AND ')}` : '';
+
+    const { rows, total, currentPage } = db.transaction(() => {
+      const { total } = db.prepare(`SELECT COUNT(*) AS total ${fromSql}${whereSql}`).get(params);
+      // 与 search 的钳制逻辑一致：数据减少导致页码越界时返回最后一个有效页
+      const currentPage = Math.min(requestedPage, Math.max(1, Math.ceil(total / pageSize)));
+      const rows = total ? db.prepare(`
+        SELECT i.item_id, i.title, i.resume, i.image_type, i.asset_url, i.source_file, i.updated_at,
+               i.document_id, d.file_name, f.name AS folder_name
+        ${fromSql}${whereSql}
+        ORDER BY i.updated_at DESC, i.item_id ASC
+        LIMIT @limit OFFSET @offset
+      `).all({ ...params, limit: pageSize, offset: (currentPage - 1) * pageSize }) : [];
+      return { rows, total, currentPage };
+    })();
+
+    const items = rows.map((row) => ({
+      item_id: row.item_id,
+      title: row.title,
+      resume: row.resume,
+      image_type: row.image_type || undefined,
+      asset_url: row.asset_url || undefined,
+      source_file: row.source_file || undefined,
+      document_id: row.document_id,
+      file_name: row.file_name,
+      folder_name: row.folder_name,
+      updated_at: row.updated_at,
+    }));
     return { items, total, page: currentPage, pageSize };
   }
 
@@ -694,8 +761,8 @@ function createKnowledgeBaseStore({ app, db }) {
     db.prepare('DELETE FROM knowledge_items WHERE document_id = ?').run(documentId);
     const timestamp = now();
     const itemInsert = db.prepare(`
-      INSERT INTO knowledge_items (document_id, item_id, title, resume, content, source_file, content_chars, sort_order, created_at, updated_at)
-      VALUES (@document_id, @item_id, @title, @resume, @content, @source_file, @content_chars, @sort_order, @created_at, @updated_at)
+      INSERT INTO knowledge_items (document_id, item_id, title, resume, content, source_file, content_chars, sort_order, created_at, updated_at, item_kind, image_type, asset_url)
+      VALUES (@document_id, @item_id, @title, @resume, @content, @source_file, @content_chars, @sort_order, @created_at, @updated_at, @item_kind, @image_type, @asset_url)
     `);
     const blockInsert = db.prepare(`
       INSERT OR IGNORE INTO knowledge_item_blocks (document_id, item_id, block_id, sort_order)
@@ -715,6 +782,9 @@ function createKnowledgeBaseStore({ app, db }) {
         sort_order: index,
         created_at: timestamp,
         updated_at: timestamp,
+        item_kind: item.item_kind === 'image' ? 'image' : 'text',
+        image_type: item.image_type ? String(item.image_type) : null,
+        asset_url: item.asset_url ? String(item.asset_url) : null,
       });
       (Array.isArray(item.source_block_ids) ? item.source_block_ids : []).forEach((blockId, blockIndex) => {
         blockInsert.run({ document_id: documentId, item_id: String(item.id), block_id: String(blockId), sort_order: blockIndex });
@@ -1045,6 +1115,9 @@ function createKnowledgeBaseStore({ app, db }) {
       title: row.title,
       resume: row.resume,
       content: row.content,
+      item_kind: row.item_kind || 'text',
+      image_type: row.image_type || undefined,
+      asset_url: row.asset_url || undefined,
       source_block_ids: blocksByItem.get(row.item_id) || [],
       source_file: row.source_file || undefined,
     }));
@@ -1090,6 +1163,9 @@ function createKnowledgeBaseStore({ app, db }) {
           title: row.title,
           resume: row.resume,
           content: row.content,
+          item_kind: row.item_kind || 'text',
+          image_type: row.image_type || undefined,
+          asset_url: row.asset_url || undefined,
           source_block_ids: blocksByItem.get(`${row.document_id}::${row.item_id}`) || [],
           source_file: row.source_file || undefined,
         });
@@ -1213,6 +1289,7 @@ function createKnowledgeBaseStore({ app, db }) {
     readAnalysis,
     getOutlineReferences,
     search,
+    listImageItems,
     resolvePath,
   };
 }

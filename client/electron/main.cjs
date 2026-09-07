@@ -22,6 +22,12 @@ let quitAfterClose = false;
 
 // 应用正常启动后静默检查公网出口 IP，仅明确命中封禁列表时结束进程。
 async function checkBlockedIpAfterStartup() {
+  // 离线模式下不做任何出网请求，静默跳过 IP 封禁检查。
+  const startupConfig = readStartupConfigFile();
+  if (startupConfig && startupConfig.offline_mode === true) {
+    return;
+  }
+
   try {
     const response = await net.fetch(IP_BLOCK_LIST_ENDPOINT, {
       cache: 'no-store',

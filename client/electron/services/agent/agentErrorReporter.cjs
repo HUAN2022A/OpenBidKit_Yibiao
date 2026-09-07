@@ -138,6 +138,8 @@ function createAgentErrorReporter({ app, configStore, licenseService }) {
 
   async function dispatch({ payload, error, userTaskContext }) {
     const config = configStore.load();
+    // 离线模式：跳过诊断包上传，本地诊断数据保留不删。
+    if (config?.offline_mode === true) return;
     const license = normalizeLicenseEnvelope(licenseService?.getLicenseEnvelope?.());
     const version = typeof app?.getVersion === 'function' ? app.getVersion() : '';
     if (closing || !license || !version || !config.analytics_client_id || !config.analytics_created_at) return;

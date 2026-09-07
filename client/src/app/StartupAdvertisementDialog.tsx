@@ -11,10 +11,36 @@ interface StartupAdvertisementDialogProps {
 
 // 软件每次启动时展示固定广告，并在倒计时结束后开放关闭操作。
 function StartupAdvertisementDialog({ onClosed }: StartupAdvertisementDialogProps) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [remainingSeconds, setRemainingSeconds] = useState(closeDelaySeconds);
 
+  // 离线模式守卫：先读配置，离线时不加载广告图片、直接走关闭回调；配置读取失败时保持原有展示行为。
   useEffect(() => {
+    let canceled = false;
+    void (async () => {
+      let offline = false;
+      try {
+        const config = await window.yibiao?.config?.load();
+        offline = Boolean(config && (config as { offline_mode?: boolean }).offline_mode === true);
+      } catch {
+        // 配置读取失败时按在线处理，保持原有展示行为
+      }
+      if (canceled) return;
+      if (offline) {
+        setOpen(false);
+        onClosed();
+        return;
+      }
+      setOpen(true);
+    })();
+    return () => {
+      canceled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+
     const closeAvailableAt = Date.now() + closeDelaySeconds * 1000;
     const timer = window.setInterval(() => {
       const nextRemainingSeconds = Math.max(0, Math.ceil((closeAvailableAt - Date.now()) / 1000));
@@ -25,7 +51,7 @@ function StartupAdvertisementDialog({ onClosed }: StartupAdvertisementDialogProp
     }, 250);
 
     return () => window.clearInterval(timer);
-  }, []);
+  }, [open]);
 
   const canClose = remainingSeconds === 0;
 

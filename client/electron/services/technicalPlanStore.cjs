@@ -12,6 +12,7 @@ const {
   getTechnicalPlanTenderMarkdownPath,
   getTechnicalPlanTenderOriginalsDir,
   getGeneratedImagesDir,
+  getImportedImagesDir,
   getWorkspaceTrashDir,
 } = require('../utils/paths.cjs');
 const { deleteImportedImageBatches } = require('../utils/importedImages.cjs');
@@ -585,6 +586,41 @@ function createTechnicalPlanStore({ app, db, fileService, agentService, taskLogS
       filePath,
       assetUrl: `yibiao-asset://generated-images/technical-plan/illustrations/${encodeURIComponent(safeRevision)}/${encodeURIComponent(`${safeItemId}.png`)}`,
     };
+  }
+
+  // 将 yibiao-asset:// URL 解析为本地文件路径，映射规则与 main.cjs 的资产协议处理器一致。
+  function resolveYibiaoAssetPath(assetUrl) {
+    const text = String(assetUrl || '').trim();
+    if (!text) return null;
+    let url;
+    try {
+      url = new URL(text);
+    } catch {
+      return null;
+    }
+    if (url.protocol !== 'yibiao-asset:') return null;
+    const rootDir = url.hostname === 'generated-images' ? getGeneratedImagesDir(app)
+      : url.hostname === 'imported-images' ? getImportedImagesDir(app) : null;
+    if (!rootDir) return null;
+    const relativePath = decodeURIComponent(url.pathname.replace(/^\/+/, ''));
+    if (!relativePath) return null;
+    const baseDir = path.resolve(rootDir);
+    const filePath = path.resolve(baseDir, relativePath);
+    if (filePath !== baseDir && !filePath.startsWith(`${baseDir}${path.sep}`)) return null;
+    return filePath;
+  }
+
+  // 复用知识库历史图时，把图片复制进生成图目录，使技术方案不再依赖知识库图片文件的生命周期。
+  function saveReusedIllustrationImage({ revision, itemId, sourceAssetUrl }) {
+    const sourcePath = resolveYibiaoAssetPath(sourceAssetUrl);
+    if (!sourcePath || !fs.existsSync(sourcePath)) return null;
+    const sourceExt = path.extname(sourcePath).toLowerCase();
+    const ext = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'].includes(sourceExt) ? sourceExt : '.png';
+    const safeRevision = normalizeIllustrationFilePart(revision);
+    const safeItemId = normalizeIllustrationFilePart(itemId);
+    const filePath = path.join(generatedIllustrationsDir, safeRevision, `${safeItemId}${ext}`);
+    writeIllustrationFile(filePath, fs.readFileSync(sourcePath));
+    return `yibiao-asset://generated-images/technical-plan/illustrations/${encodeURIComponent(safeRevision)}/${encodeURIComponent(`${safeItemId}${ext}`)}`;
   }
 
   // 清理技术方案专属的图片源文件和生成图片。
@@ -1441,6 +1477,7 @@ function createTechnicalPlanStore({ app, db, fileService, agentService, taskLogS
       generation_attempts: generation?.attempts === undefined ? null : Number(generation.attempts || 0),
       generation_error: generation?.error ? String(generation.error) : null,
       generation_updated_at: generation?.updated_at || null,
+      reuse_source_json: item?.reuse_source ? JSON.stringify(item.reuse_source) : null,
       sort_order: Number(sortOrder || 0),
       updated_at: item.updated_at || timestamp,
     };
@@ -1451,12 +1488,12 @@ function createTechnicalPlanStore({ app, db, fileService, agentService, taskLogS
       item_id, kind, image_type, title, section_ids_json, placement, priority,
       generation_status, generation_mode, generation_code, generation_source_path,
       generation_asset_url, generation_attempts, generation_error, generation_updated_at,
-      sort_order, updated_at
+      reuse_source_json, sort_order, updated_at
     ) VALUES (
       @item_id, @kind, @image_type, @title, @section_ids_json, @placement, @priority,
       @generation_status, @generation_mode, @generation_code, @generation_source_path,
       @generation_asset_url, @generation_attempts, @generation_error, @generation_updated_at,
-      @sort_order, @updated_at
+      @reuse_source_json, @sort_order, @updated_at
     ) ON CONFLICT(item_id) DO UPDATE SET
       kind = excluded.kind,
       image_type = excluded.image_type,
@@ -1472,6 +1509,7 @@ function createTechnicalPlanStore({ app, db, fileService, agentService, taskLogS
       generation_attempts = excluded.generation_attempts,
       generation_error = excluded.generation_error,
       generation_updated_at = excluded.generation_updated_at,
+      reuse_source_json = excluded.reuse_source_json,
       sort_order = excluded.sort_order,
       updated_at = excluded.updated_at
   `);
@@ -1527,6 +1565,7 @@ function createTechnicalPlanStore({ app, db, fileService, agentService, taskLogS
         section_ids: safeJsonParse(row.section_ids_json, []),
         placement: row.placement,
         priority: Number(row.priority || 0),
+        ...(row.reuse_source_json ? { reuse_source: safeJsonParse(row.reuse_source_json, null) } : {}),
         ...(generation ? { generation } : {}),
       };
     });
@@ -2733,6 +2772,7 @@ function createTechnicalPlanStore({ app, db, fileService, agentService, taskLogS
     saveGlobalFacts,
     saveIllustrationHtml,
     saveIllustrationPng,
+    saveReusedIllustrationImage,
     saveContentGenerationOptions,
     saveChapterContent,
     clearBidTemplate,

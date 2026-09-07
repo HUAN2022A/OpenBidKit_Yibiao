@@ -1411,3 +1411,178 @@
   margin-top: 6px;
 }
 
+/* ═══════════════════════════════════════════════════
+   上传 Word 模板识别 + 识别结果摘要（导出格式设置页 create 模式）
+   ═══════════════════════════════════════════════════ */
+
+.export-template-word-analyze {
+  display: grid;
+  gap: 12px;
+  padding: 0 24px 12px;
+}
+
+.export-template-word-analyze-entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 20px;
+  padding: 16px 18px;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(33, 116, 253, 0.1), transparent 40%),
+    rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(33, 116, 253, 0.2);
+  border-radius: var(--yb-radius-lg);
+}
+
+.export-template-word-analyze-copy {
+  display: grid;
+  min-width: 240px;
+  flex: 1 1 auto;
+  gap: 5px;
+}
+
+.export-template-word-analyze-copy strong {
+  color: var(--yb-text);
+  font-size: 16px;
+}
+
+.export-template-word-analyze-copy span {
+  color: var(--yb-text-soft);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.export-template-word-analyze-trigger {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.export-template-word-summary {
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid var(--yb-border-soft);
+  border-radius: var(--yb-radius-lg);
+}
+
+.export-template-word-summary-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 14px 18px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.export-template-word-summary-title {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.export-template-word-summary-title strong {
+  color: var(--yb-text);
+  font-size: 15px;
+}
+
+.export-template-word-summary-title span {
+  overflow: hidden;
+  color: var(--yb-text-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.export-template-word-summary-chevron {
+  flex: 0 0 auto;
+  color: var(--yb-text-muted);
+  font-size: 14px;
+  transition: transform var(--yb-duration) ease;
+}
+
+.export-template-word-summary-chevron.is-open {
+  transform: rotate(90deg);
+}
+
+.export-template-word-summary-body {
+  display: grid;
+  gap: 12px;
+  padding: 0 18px 16px;
+  border-top: 1px solid var(--yb-border-soft);
+}
+
+.export-template-word-summary-note {
+  margin: 14px 0 0;
+  color: var(--yb-text-soft);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.export-template-word-summary-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.export-template-word-summary-list li {
+  display: grid;
+  grid-template-columns: minmax(88px, auto) minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  padding: 9px 12px;
+  background: rgba(33, 116, 253, 0.03);
+  border: 1px solid var(--yb-border-soft);
+  border-radius: var(--yb-radius-md);
+}
+
+.export-template-word-summary-group {
+  color: var(--yb-text);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.export-template-word-summary-text {
+  min-width: 0;
+  color: var(--yb-text-soft);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.export-template-word-summary-badge {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border-radius: var(--yb-radius-pill);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.export-template-word-summary-badge.is-ai {
+  color: var(--yb-violet);
+  background: rgba(124, 92, 255, 0.1);
+  border: 1px solid rgba(124, 92, 255, 0.22);
+}
+
+.export-template-word-summary-badge.is-default {
+  color: var(--yb-warning-deep);
+  background: var(--yb-warning-soft);
+  border: 1px solid var(--yb-warning-border);
+}
+
+.export-template-word-summary-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+

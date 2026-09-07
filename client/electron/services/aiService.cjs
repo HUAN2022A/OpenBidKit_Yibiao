@@ -334,6 +334,11 @@ function createHeaders(apiKey) {
 }
 
 function trackAiRequest(app, config, payload) {
+  // 离线模式：跳过 AI 埋点上报，本地 token 统计与请求日志等逻辑保持不变。
+  if (config?.offline_mode === true) {
+    return;
+  }
+
   void Promise.resolve()
     .then(() => {
       const imageConfig = config.image_model || {};
@@ -2536,6 +2541,7 @@ function createAiService({ app, configStore }) {
         ...config,
         analytics_client_id: config.analytics_client_id || currentConfig.analytics_client_id,
         analytics_created_at: config.analytics_created_at || currentConfig.analytics_created_at,
+        offline_mode: config.offline_mode ?? currentConfig.offline_mode,
       };
 
       if (trackedConfig.image_model?.provider === 'jinlong' || trackedConfig.image_model?.provider === 'volcengine' || trackedConfig.image_model?.provider === 'agnes' || trackedConfig.image_model?.provider === 'custom') {
@@ -2627,6 +2633,17 @@ function createAiService({ app, configStore }) {
       const normalizedModelName = String(modelName || '').trim();
       if (!normalizedModelName) {
         return { success: false, message: '请先填写文本模型名称', modelName: '', model: null, syncedAt: '' };
+      }
+
+      // 离线模式：跳过云端模型信息查询，按"未命中"形态返回，由用户手动录入。
+      if (configStore.load()?.offline_mode === true) {
+        return {
+          success: false,
+          message: `离线模式已开启，已跳过 ${normalizedModelName} 的云端模型信息查询，请手动录入`,
+          modelName: normalizedModelName,
+          model: null,
+          syncedAt: '',
+        };
       }
 
       const response = await fetch(`${MODEL_INFO_ENDPOINT}?modelName=${encodeURIComponent(normalizedModelName)}`);

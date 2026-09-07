@@ -3,6 +3,17 @@ const PROJECT_NAME = 'yibiao-client';
 const DISMISSED_NOTICE_ID_KEY = 'remote_notice_dismissed_id';
 const LOG_PREFIX = '[remote-notice]';
 
+// 读取归一化配置中的 offline_mode，为 true 时抑制公告相关的出网请求。
+// 配置读取失败时放行（返回 false）：与现有容错风格一致，不因读取异常静默停用公告功能。
+export async function loadOfflineModeEnabled(): Promise<boolean> {
+  try {
+    const config: unknown = await window.yibiao?.config.load();
+    return Boolean(config && (config as { offline_mode?: boolean }).offline_mode === true);
+  } catch {
+    return false;
+  }
+}
+
 export interface RemoteNotice {
   id: string;
   projectName: string;
@@ -42,6 +53,11 @@ export function dismissRemoteNotice(noticeId: string) {
 
 // 公告弹窗展示后上报一次送达计数。
 export async function reportRemoteNoticeDelivered(notice: Pick<RemoteNotice, 'id' | 'projectName'>) {
+  if (await loadOfflineModeEnabled()) {
+    // 离线模式：静默跳过送达上报（本地展示不受影响）。
+    return;
+  }
+
   const response = await fetch(`${NOTICE_ENDPOINT}/delivered`, {
     method: 'POST',
     headers: {
@@ -77,6 +93,11 @@ function normalizeNotice(notice: RemoteNotice | null | undefined): RemoteNotice 
 }
 
 export async function fetchRemoteNotice() {
+  if (await loadOfflineModeEnabled()) {
+    // 离线模式：静默跳过公告拉取。
+    return null;
+  }
+
   const url = new URL(NOTICE_ENDPOINT);
   url.searchParams.set('projectName', PROJECT_NAME);
 

@@ -162,6 +162,7 @@ const workspaceDatabaseChannels = [
   'rejection-check:clear',
   'knowledge-base:list',
   'knowledge-base:search',
+  'knowledge-base:list-image-items',
   'knowledge-base:create-folder',
   'knowledge-base:rename-folder',
   'knowledge-base:delete-folder',
@@ -289,7 +290,7 @@ function registerWorkspaceDatabaseServices({ app, configStore, aiService, agentS
   registerFeasibilityReportIpc({ feasibilityReportStore, taskService });
   registerDuplicateCheckIpc({ duplicateCheckStore, checkResultExportService });
   registerRejectionCheckIpc({ rejectionCheckStore, taskService, checkResultExportService });
-  registerTemplateIpc({ templateStore });
+  registerTemplateIpc({ templateStore, aiService, configStore });
   registerTaskIpc({ taskService });
   updateStatus({ phase: 'ready', ready: true, message: '本地数据库已就绪' });
   
@@ -427,6 +428,7 @@ function registerIpcHandlers({ app, mainWindow, checkAndDownloadUpdate, triggerU
   registerSystemFontIpc({ systemFontService });
   registerPluginIpc(ipcMain, app, {
     agentService,
+    configStore,
     taskService: null,
     technicalPlanStore: null,
     duplicateCheckStore: null,

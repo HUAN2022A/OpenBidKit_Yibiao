@@ -72,6 +72,25 @@ function getPlannedTitle(execution) {
   return title;
 }
 
+// 计划项携带 reuse_source（{ item_id, asset_url, confidence }）时，跳过模型生图，
+// 直接复用历史图片地址作为 generation.asset_url；不命中时返回 null 走正常生成流程。
+function buildReusedIllustrationGeneration(execution) {
+  const reuse = execution?.planItem?.reuse_source;
+  const assetUrl = String(reuse?.asset_url || '').trim();
+  if (!assetUrl) return null;
+  // 图注仍走 buildGeneratedIllustrationMarkdown，复用前同样校验图题存在，避免复用项把错误推迟到正文插入阶段。
+  getPlannedTitle(execution);
+  return {
+    asset_url: assetUrl,
+    attempts: 0,
+    reuse_source: {
+      item_id: reuse.item_id,
+      asset_url: assetUrl,
+      confidence: reuse.confidence,
+    },
+  };
+}
+
 function buildAiImagePrompt(execution) {
   const styleLabel = execution.planItem.image_type === 'realistic_photo' ? '专业实景图片' : '专业工程图示';
   const title = getPlannedTitle(execution);
@@ -238,6 +257,8 @@ async function prepareRenderableMermaid({ aiService, execution, mermaidPlan, isP
 
 // 使用生图模型基于最终正文生成 AI 图片。
 async function generateAiIllustration(aiService, execution) {
+  const reused = buildReusedIllustrationGeneration(execution);
+  if (reused) return reused;
   const title = getPlannedTitle(execution);
   const generated = await aiService.generateImage({
     title,
@@ -264,6 +285,8 @@ async function generateMermaidIllustrationInternal(aiService, execution, isPause
 
 // 生成并校验可本地渲染的 Mermaid 配图。
 async function generateMermaidIllustration(aiService, execution, isPauseLikeError) {
+  const reused = buildReusedIllustrationGeneration(execution);
+  if (reused) return reused;
   return generateMermaidIllustrationInternal(aiService, execution, isPauseLikeError);
 }
 
@@ -440,6 +463,8 @@ async function generateHtmlIllustrationInternal({ aiService, execution, plan, wo
 
 // 生成 HTML 配图（源码 + 本地截图）。
 async function generateHtmlIllustration(options) {
+  const reused = buildReusedIllustrationGeneration(options?.execution);
+  if (reused) return reused;
   return generateHtmlIllustrationInternal(options);
 }
 
