@@ -1,0 +1,307 @@
+/* 图片知识库页面：工具栏筛选、缩略图网格、分页与卡片（ImageKnowledgeBasePage.tsx）
+ * 仅使用 tokens.css 既有变量；大图预览复用 shared-markdown.css 的 image-preview-* 弹层。
+ */
+
+.image-kb-page {
+  align-items: stretch;
+  padding: 28px;
+  gap: 20px;
+}
+
+/* 顶部面包屑条：标题 + 图片总数 */
+.image-kb-workspace-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.image-kb-breadcrumb {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.image-kb-breadcrumb span {
+  color: var(--yb-text-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.image-kb-breadcrumb strong {
+  color: var(--yb-text);
+  font-size: 20px;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.image-kb-breadcrumb small {
+  color: var(--yb-text-soft);
+  font-size: 12px;
+}
+
+/* 筛选工具栏：关键词输入 + 类型 chips */
+.image-kb-toolbar {
+  display: grid;
+  gap: 14px;
+  padding: 18px 20px;
+}
+
+.image-kb-toolbar-row {
+  display: grid;
+  width: min(560px, 100%);
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.image-kb-toolbar-row label {
+  color: var(--yb-text-soft);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.image-kb-toolbar-row input {
+  height: 42px;
+  padding: 0 14px;
+  color: var(--yb-text);
+  background: var(--yb-surface);
+  border: 1px solid var(--yb-border-soft);
+  border-radius: var(--yb-radius-pill);
+  outline: none;
+}
+
+.image-kb-toolbar-row input:focus {
+  border-color: var(--yb-primary);
+  box-shadow: var(--yb-focus-ring);
+}
+
+.image-kb-filter-chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.image-kb-chip {
+  padding: 7px 16px;
+  color: var(--yb-text-soft);
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--yb-surface);
+  border: 1px solid var(--yb-border);
+  border-radius: var(--yb-radius-pill);
+  transition: color var(--yb-duration-fast) ease, background var(--yb-duration-fast) ease, border-color var(--yb-duration-fast) ease;
+}
+
+.image-kb-chip:hover {
+  color: var(--yb-primary);
+  border-color: var(--yb-primary);
+}
+
+.image-kb-chip.is-active {
+  color: var(--yb-surface);
+  background: var(--yb-primary);
+  border-color: var(--yb-primary);
+}
+
+/* 图片网格主面板 */
+.image-kb-grid-panel {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  padding: 20px;
+}
+
+.image-kb-grid {
+  display: grid;
+  align-content: start;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+/* 状态占位（加载中 / 失败），空态用 EmptyState 组件 */
+.image-kb-status-box {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 8px;
+  min-height: 220px;
+  padding: 32px;
+  color: var(--yb-text-soft);
+  text-align: center;
+}
+
+.image-kb-status-box strong {
+  color: var(--yb-text);
+  font-size: 15px;
+}
+
+.image-kb-status-box p {
+  margin: 0;
+  font-size: 13px;
+}
+
+/* 单张图片卡片 */
+.image-kb-card {
+  display: grid;
+  min-width: 0;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 14px;
+  background: var(--yb-surface);
+  border: 1px solid var(--yb-border-soft);
+  border-radius: var(--yb-radius-lg);
+  box-shadow: var(--yb-shadow-xs);
+  transition: border-color var(--yb-duration-fast) ease, box-shadow var(--yb-duration-fast) ease;
+}
+
+.image-kb-card:hover {
+  border-color: var(--yb-primary);
+  box-shadow: var(--yb-shadow-sm);
+}
+
+.image-kb-card-thumb {
+  display: grid;
+  width: 100%;
+  height: 168px;
+  place-items: center;
+  padding: 8px;
+  background: var(--yb-border-soft);
+  border: 1px solid var(--yb-border-soft);
+  border-radius: var(--yb-radius-md);
+  cursor: zoom-in;
+  transition: border-color var(--yb-duration-fast) ease;
+}
+
+.image-kb-card-thumb:hover {
+  border-color: var(--yb-primary);
+}
+
+.image-kb-card-thumb img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--yb-radius-sm);
+}
+
+.image-kb-card-body {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 8px;
+}
+
+.image-kb-card-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.image-kb-kind-tag,
+.image-kb-type-tag {
+  width: fit-content;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: var(--yb-radius-pill);
+}
+
+.image-kb-kind-tag {
+  color: var(--yb-primary);
+  background: var(--yb-border-soft);
+}
+
+.image-kb-type-tag {
+  color: var(--yb-violet);
+  background: var(--yb-border-soft);
+}
+
+.image-kb-card-title {
+  overflow: hidden;
+  color: var(--yb-text);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.image-kb-card-resume {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  color: var(--yb-text-soft);
+  font-size: 13px;
+  line-height: 1.7;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.image-kb-card-source {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.image-kb-card-source span {
+  color: var(--yb-text-muted);
+  font-size: 12px;
+}
+
+.image-kb-card-source strong {
+  overflow: hidden;
+  color: var(--yb-text-soft);
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.image-kb-card-source small {
+  color: var(--yb-text-muted);
+  font-size: 12px;
+}
+
+.image-kb-card-source time {
+  margin-left: auto;
+  color: var(--yb-text-muted);
+  font-size: 12px;
+}
+
+.image-kb-card-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.image-kb-card-actions .secondary-action {
+  padding: 8px 16px;
+  font-size: 13px;
+}
+
+/* 分页条：仿知识库全库检索分页 */
+.image-kb-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 4px 6px 0;
+}
+
+.image-kb-pagination > span {
+  color: var(--yb-text-soft);
+  font-size: 13px;
+}
+
+.image-kb-pagination > div {
+  display: flex;
+  gap: 10px;
+}

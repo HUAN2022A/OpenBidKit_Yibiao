@@ -1,4 +1,5 @@
 import type { ClientConfig } from '../types/config';
+import { loadOfflineModeEnabled } from '../remoteNotice';
 
 const ANALYTICS_ENDPOINT = 'https://analytics.agnet.top/track';
 const PROJECT_NAME = 'yibiao-client';
@@ -200,30 +201,40 @@ function configUsageValueText(value: unknown) {
 }
 
 function sendAnalytics(event: AnalyticsEvent, page = '', payload: Record<string, unknown> = {}) {
-  void Promise.all([getVersion(), getAnalyticsIdentity(), getAnalyticsLicenseSnapshot()]).then(([version, identity, license]) => {
-    fetch(ANALYTICS_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        projectName: PROJECT_NAME,
-        event,
-        page,
-        version,
-        platform: getPlatform(),
-        arch: '',
-        client_id: identity.clientId,
-        client_created_at: identity.clientCreatedAt,
-        license_status: license.licenseStatus,
-        license_plan: license.licensePlan,
-        license_expires_at: license.licenseExpiresAt,
-        source_trusted: license.sourceTrusted,
-        untrusted_reason: license.untrustedReason,
-        ...payload,
-      }),
-    }).catch(() => undefined);
-  }).catch(() => undefined);
+  void loadOfflineModeEnabled()
+    .then((offline) => {
+      if (offline) {
+        // 离线模式：静默跳过埋点上报；客户端 ID 迁移等纯本地逻辑保持原样，
+        // 恢复在线后随下一次上报继续执行。
+        return;
+      }
+
+      return Promise.all([getVersion(), getAnalyticsIdentity(), getAnalyticsLicenseSnapshot()]).then(([version, identity, license]) => {
+        fetch(ANALYTICS_ENDPOINT, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            projectName: PROJECT_NAME,
+            event,
+            page,
+            version,
+            platform: getPlatform(),
+            arch: '',
+            client_id: identity.clientId,
+            client_created_at: identity.clientCreatedAt,
+            license_status: license.licenseStatus,
+            license_plan: license.licensePlan,
+            license_expires_at: license.licenseExpiresAt,
+            source_trusted: license.sourceTrusted,
+            untrusted_reason: license.untrustedReason,
+            ...payload,
+          }),
+        }).catch(() => undefined);
+      });
+    })
+    .catch(() => undefined);
 }
 
 export function trackAppOpen() {

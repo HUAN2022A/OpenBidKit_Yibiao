@@ -1,7 +1,15 @@
 ﻿import * as Dialog from '@radix-ui/react-dialog';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { trackPageView } from '../../../shared/analytics/analytics';
-import { AppSwitch, FloatingToolbar, ProgressBar, useToast } from '../../../shared/ui';
+import {
+  AppSwitch,
+  FloatingToolbar,
+  InlineSpinner,
+  LIBREOFFICE_REQUIRED_MESSAGE,
+  ProgressBar,
+  isLibreOfficeRequiredMessage,
+  useToast,
+} from '../../../shared/ui';
 import type { FloatingToolbarGroup } from '../../../shared/ui';
 import type {
   BodyTextStyleConfig,
@@ -41,6 +49,23 @@ import {
 
 type TemplateTab = 'quick' | 'layout' | 'cover' | 'heading' | 'body' | 'table' | 'image';
 type TableCellStyleKey = 'header_row' | 'first_column' | 'body_cell';
+
+/** Word 模板识别结果（契约：templates:analyze-word 返回结构） */
+type TemplateWordAnalysisSource = 'rule' | 'ai' | 'default';
+
+interface TemplateWordAnalysisSummaryItem {
+  group: string;
+  text: string;
+  source: TemplateWordAnalysisSource;
+}
+
+interface TemplateWordAnalysisResult {
+  config: ExportFormatConfig;
+  summary: TemplateWordAnalysisSummaryItem[];
+  confidenceByField: Record<string, TemplateWordAnalysisSource>;
+  sourceFileName: string;
+  sourceFormat: 'docx' | 'doc' | 'wps';
+}
 
 interface ExportFormatPageProps {
   mode?: 'create' | 'edit';
@@ -306,6 +331,31 @@ function withExportFormatDefaults(source: ExportFormatConfig): ExportFormatConfi
   };
 }
 
+/** 解析 window.yibiao 上的 Word 模板识别入口（兼容 template/templates 两种命名，随并行任务落地后可直接调用） */
+function resolveAnalyzeWord(): (() => Promise<TemplateWordAnalysisResult>) | undefined {
+  const bridge = window.yibiao as unknown as {
+    templates?: { analyzeWord?: () => Promise<TemplateWordAnalysisResult> };
+    template?: { analyzeWord?: () => Promise<TemplateWordAnalysisResult> };
+  } | undefined;
+  if (!bridge) return undefined;
+
+  const fromTemplates = bridge.templates?.analyzeWord;
+  if (typeof fromTemplates === 'function') return fromTemplates.bind(bridge.templates);
+
+  const fromTemplate = bridge.template?.analyzeWord;
+  if (typeof fromTemplate === 'function') return fromTemplate.bind(bridge.template);
+
+  return undefined;
+}
+
+/** 把转换组件缺失类错误统一成可操作文案 */
+function resolveAnalyzeErrorMessage(error: unknown): string {
+  const raw = error instanceof Error ? error.message : 'Word 模板识别失败';
+  if (isLibreOfficeRequiredMessage(raw)) return LIBREOFFICE_REQUIRED_MESSAGE;
+  if (/转换|conversion|libreoffice|\.wps/i.test(raw)) return LIBREOFFICE_REQUIRED_MESSAGE;
+  return raw;
+}
+
 function ExportFormatPage({ mode = 'create', templateId = null, onBack }: ExportFormatPageProps) {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<TemplateTab>('quick');
@@ -322,6 +372,10 @@ function ExportFormatPage({ mode = 'create', templateId = null, onBack }: Export
   const [exportProgress, setExportProgress] = useState<ExportProgressState>(initialExportProgress);
   const [previewFullscreenOpen, setPreviewFullscreenOpen] = useState(false);
   const [systemFonts, setSystemFonts] = useState<string[]>([]);
+  const [wordAnalysisLoading, setWordAnalysisLoading] = useState(false);
+  const [wordAnalysisResult, setWordAnalysisResult] = useState<TemplateWordAnalysisResult | null>(null);
+  const [wordAnalysisConfigSnapshot, setWordAnalysisConfigSnapshot] = useState<ExportFormatConfig | null>(null);
+  const [wordAnalysisOpen, setWordAnalysisOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -525,6 +579,48 @@ function ExportFormatPage({ mode = 'create', templateId = null, onBack }: Export
     showToast(`已应用主题预设：${preset?.label || '未命名预设'}，保存后生效`, 'success');
   }, [showToast]);
 
+  const handleAnalyzeWord = useCallback(async () => {
+    const analyzeWord = resolveAnalyzeWord();
+    if (!analyzeWord) {
+      showToast('当前环境不支持 Word 模板识别，请确认客户端已更新到支持版本', 'error');
+      return;
+    }
+
+    setWordAnalysisLoading(true);
+    const snapshot = config;
+    try {
+      const result = await analyzeWord();
+      if (!result || !result.config) {
+        throw new Error('识别结果为空，无法预填表单');
+      }
+      setWordAnalysisConfigSnapshot(snapshot);
+      setSelectedLayoutPresetId('');
+      setSelectedThemePresetId('');
+      setWordAnalysisResult(result);
+      setConfig((prev) => withExportFormatDefaults({ ...result.config, template_name: prev.template_name }));
+      setWordAnalysisOpen(true);
+      showToast('模板识别完成，已预填表单', 'success');
+    } catch (error) {
+      showToast(resolveAnalyzeErrorMessage(error), 'error');
+    } finally {
+      setWordAnalysisLoading(false);
+    }
+  }, [config, showToast]);
+
+  const handleDiscardAnalysis = useCallback(() => {
+    if (wordAnalysisConfigSnapshot) {
+      setConfig(wordAnalysisConfigSnapshot);
+    }
+    setWordAnalysisResult(null);
+    setWordAnalysisConfigSnapshot(null);
+    setWordAnalysisOpen(false);
+    showToast('已放弃识别结果，恢复识别前设置', 'info');
+  }, [wordAnalysisConfigSnapshot, showToast]);
+
+  const toggleWordAnalysisSummary = useCallback(() => {
+    setWordAnalysisOpen((prev) => !prev);
+  }, []);
+
   const handleExportTest = useCallback(async () => {
     let unsubscribe: (() => void) | undefined;
 
@@ -680,6 +776,65 @@ function ExportFormatPage({ mode = 'create', templateId = null, onBack }: Export
     exportTestToolbarGroup,
     ...saveToolbarGroups,
   ];
+
+  const renderWordAnalyzeEntry = () => (
+    <div className="export-template-word-analyze-entry">
+      <div className="export-template-word-analyze-copy">
+        <strong>上传 Word 模板识别</strong>
+        <span>从 .docx / .doc / .wps 模板自动识别字体、字号、页边距、标题编号等版式并预填到下方表单。</span>
+      </div>
+      <button
+        type="button"
+        className="primary-action export-template-word-analyze-trigger"
+        onClick={() => { void handleAnalyzeWord(); }}
+        disabled={wordAnalysisLoading}
+      >
+        {wordAnalysisLoading && <InlineSpinner />}
+        <span>{wordAnalysisLoading ? '识别中...' : '选择 Word 模板'}</span>
+      </button>
+    </div>
+  );
+
+  const renderWordAnalysisSummary = () => {
+    if (!wordAnalysisResult) return null;
+    const { summary, sourceFileName, sourceFormat } = wordAnalysisResult;
+    return (
+      <div className="export-template-word-summary">
+        <button
+          type="button"
+          className="export-template-word-summary-head"
+          onClick={toggleWordAnalysisSummary}
+          aria-expanded={wordAnalysisOpen}
+        >
+          <span className="export-template-word-summary-title">
+            <strong>识别结果摘要</strong>
+            <span>{sourceFileName || '未命名文件'}（{sourceFormat.toUpperCase()}） · 共 {summary.length} 项</span>
+          </span>
+          <span className={`export-template-word-summary-chevron${wordAnalysisOpen ? ' is-open' : ''}`}>▸</span>
+        </button>
+        {wordAnalysisOpen && (
+          <div className="export-template-word-summary-body">
+            <p className="export-template-word-summary-note">
+              识别结果已预填到下方表单，可继续手动调整后点击「保存配置」生效；未识别项已用默认值填充。
+            </p>
+            <ul className="export-template-word-summary-list">
+              {summary.map((item, index) => (
+                <li key={index} className={`is-${item.source}`}>
+                  <span className="export-template-word-summary-group">{item.group}</span>
+                  <span className="export-template-word-summary-text">{item.text}</span>
+                  {item.source === 'ai' ? <span className="export-template-word-summary-badge is-ai">AI 推断</span> : null}
+                  {item.source === 'default' ? <span className="export-template-word-summary-badge is-default">未识别·已用默认值</span> : null}
+                </li>
+              ))}
+            </ul>
+            <div className="export-template-word-summary-actions">
+              <button type="button" className="secondary-action" onClick={handleDiscardAnalysis}>放弃识别结果</button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const renderQuickSettings = () => (
     <>
@@ -1272,6 +1427,12 @@ function ExportFormatPage({ mode = 'create', templateId = null, onBack }: Export
         </div>
         <div className="export-template-workspace">
           <section className="settings-page-section export-template-editor">
+            {mode === 'create' ? (
+              <div className="export-template-word-analyze">
+                {renderWordAnalyzeEntry()}
+                {renderWordAnalysisSummary()}
+              </div>
+            ) : null}
             {renderActiveSettings()}
           </section>
           <TemplatePreview config={config} previewStyle={previewStyle} />

@@ -20,6 +20,16 @@ const RESOURCES_ENDPOINT = 'https://analytics.agnet.top/resources';
 const resourceTones: ResourceTone[] = ['blue', 'violet', 'cyan', 'slate'];
 const clickCountFormatter = new Intl.NumberFormat('zh-CN');
 
+/** 读取配置并判断离线模式：旧数据缺省按 false，配置读取失败时保持在线行为 */
+async function readOfflineMode(): Promise<boolean> {
+  try {
+    const config = await window.yibiao?.config?.load();
+    return Boolean(config && (config as { offline_mode?: boolean }).offline_mode === true);
+  } catch {
+    return false;
+  }
+}
+
 interface ResourcesResponse {
   code: number;
   resources?: ResourceItem[];
@@ -31,13 +41,28 @@ function ResourcesPage() {
   const [resources, setResources] = useState<ResourceItem[]>([]);
   const [searchText, setSearchText] = useState('');
   const [loading, setLoading] = useState(false);
+  const [offlineMode, setOfflineMode] = useState(false);
   const { showToast } = useToast();
 
   useEffect(() => {
-    void loadResources('');
+    let canceled = false;
+    void (async () => {
+      const offline = await readOfflineMode();
+      if (canceled) return;
+      setOfflineMode(offline);
+      if (!offline) {
+        void loadResources('');
+      }
+    })();
+    return () => {
+      canceled = true;
+    };
   }, []);
 
   const loadResources = async (query: string) => {
+    if (offlineMode) {
+      return; // 离线模式：静默跳过网络请求，页面展示离线占位
+    }
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -83,12 +108,14 @@ function ResourcesPage() {
                 placeholder="搜索标题、标签或介绍"
                 aria-label="搜索资源"
               />
-              <button type="submit" className="primary-action" disabled={loading}>{loading ? '搜索中' : '搜索'}</button>
+              <button type="submit" className="primary-action" disabled={loading || offlineMode}>{loading ? '搜索中' : '搜索'}</button>
             </form>
           </div>
 
           <div className="resources-shelf-list">
-            {resources.map((item) => (
+            {offlineMode ? (
+              <EmptyState title="离线模式已开启，资源页不可用" hint="关闭离线模式后即可浏览精选资源。" />
+            ) : resources.map((item) => (
               <button
                 type="button"
                 className="resource-book-row"
@@ -111,7 +138,7 @@ function ResourcesPage() {
                 </span>
               </button>
             ))}
-            {!loading && resources.length === 0 ? (
+            {!offlineMode && !loading && resources.length === 0 ? (
               <EmptyState title="暂无资源" hint={searchText.trim() ? '没有匹配当前关键词的资源。' : '资源管理后台还没有上架资源。'} />
             ) : null}
           </div>

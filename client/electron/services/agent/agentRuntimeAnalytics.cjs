@@ -21,6 +21,8 @@ function trackAgentRuntime(app, configStore, status, meta = {}) {
   void Promise.resolve()
     .then(() => {
       const config = configStore.load();
+      // 离线模式：跳过 agent 运行埋点上报，本地状态与统计逻辑不受影响。
+      if (config?.offline_mode === true) return;
       return fetch(ANALYTICS_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

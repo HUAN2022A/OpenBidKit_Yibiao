@@ -18,6 +18,20 @@ const KNOWLEDGE_CONTEXT_LIMIT_RATIO = 0.8;
 /** 统一 block 分段时预留给任务说明+条目等 L2 后缀的预算比例（策略 B） */
 const TASK_AND_ITEMS_RESERVE_RATIO = 0.2;
 const PROMPT_CACHE_WARMUP_DELAY_MS = 5000;
+const markdownImagePattern = /!\[(?<alt>[^\]]*)\]\((?<target><[^>]+>|[^)\s]+)(?<title>\s+"[^"]*")?\)/gi;
+const imageContextCharsLimit = 400;
+const imageResumeFallbackChars = 120;
+/** 图条目类型词汇表：与 contentIllustrationPlanning.cjs 中图片类型配置（allowed_types，约 L99-118）的英文标识与中文说明保持一致 */
+const IMAGE_TYPE_VOCABULARY = [
+  { code: 'engineering_diagram', label: '工程图示', description: '专业工程图示：用于展示设备、系统组件、部署位置、连接关系或工程实施场景，强调结构与关系；不用于步骤流转、组织层级或职责分工。' },
+  { code: 'realistic_photo', label: '实景照片', description: '专业实景图片：用于表现设备、机房、监控中心、施工、巡检或维护现场等可真实拍摄的对象和环境；不用于抽象系统架构、流程或组织关系。' },
+  { code: 'process', label: '流程图', description: '流程图：用于表达按先后顺序发生的步骤、判断、流转和闭环处理过程；不用于静态系统拓扑或人员层级。' },
+  { code: 'hierarchy', label: '层级图', description: '层级图：用于表达组织、系统模块、资源分类等上下级或包含关系；不用于时间顺序或职责矩阵。' },
+  { code: 'responsibility', label: '职责关系图', description: '职责关系图：用于表达角色、岗位、责任边界和协作关系；不用于设备拓扑或纯流程步骤。' },
+];
+const IMAGE_TYPE_LABELS = new Set(IMAGE_TYPE_VOCABULARY.map((type) => type.label));
+const IMAGE_TYPE_LABEL_BY_CODE = new Map(IMAGE_TYPE_VOCABULARY.map((type) => [type.code, type.label]));
+const IMAGE_TYPE_FALLBACK = '其他图';
 
 function now() {
   return new Date().toISOString();
@@ -101,6 +115,32 @@ function getMatchSummary(matches) {
 
 function stripMarkdownFence(content) {
   return String(content || '').replace(/^```[\s\S]*?\n/, '').replace(/```$/g, '').trim();
+}
+
+/** 剥离 Markdown 图片语法（与 fileService.cjs 中同名的图片剥离逻辑保持一致），保证文字条目与提示词正文不含图片 */
+function stripMarkdownImages(text) {
+  return String(text || '')
+    .replace(markdownImagePattern, '')
+    .replace(/<img\b[^>]*>/gi, '')
+    .replace(/\n{3,}/g, '\n\n');
+}
+
+function cleanMarkdownImageTarget(value) {
+  const target = String(value || '').trim();
+  return target.startsWith('<') && target.endsWith('>') ? target.slice(1, -1) : target;
+}
+
+function truncateText(text, limit) {
+  const value = String(text || '').trim();
+  if (value.length <= limit) return value;
+  return `${value.slice(0, limit)}…`;
+}
+
+/** 将 LLM 返回的图片类型归一化到词汇表标签，选不出时用「其他图」兜底 */
+function normalizeImageType(value) {
+  const normalized = String(value || '').replace(/\s+/g, '').trim();
+  if (IMAGE_TYPE_LABELS.has(normalized)) return normalized;
+  return IMAGE_TYPE_LABEL_BY_CODE.get(normalized) || IMAGE_TYPE_FALLBACK;
 }
 
 function splitOversizedText(text, limit) {
@@ -387,7 +427,7 @@ function renderBlocksForPrompt(blocks) {
       `type: ${block.type}`,
       `heading_path: ${headingPath}`,
       'text:',
-      block.content,
+      stripMarkdownImages(block.content),
     ].join('\n');
   }).join('\n\n');
 }
@@ -490,6 +530,46 @@ function packItemsIntoSegments(items, segmentLimit) {
     }
     currentItems.push(item);
     currentChars += (currentItems.length > 1 ? 2 : 0) + itemChars;
+  }
+  flush();
+
+  return segments.map((segment, index) => ({
+    ...segment,
+    index: index + 1,
+    total: segments.length,
+  }));
+}
+
+/** 将图片上下文按渲染长度打包成段（多张图一次请求，超预算分批） */
+function packImageInfosIntoSegments(imageInfos, segmentLimit) {
+  const limit = Math.max(1, Math.floor(Number(segmentLimit) || 1));
+  const source = Array.isArray(imageInfos) ? imageInfos : [];
+  if (!source.length) return [];
+
+  const segments = [];
+  let currentInfos = [];
+  let currentChars = 0;
+
+  const flush = () => {
+    if (!currentInfos.length) return;
+    const text = renderImageInfosForPrompt(currentInfos);
+    segments.push({
+      imageInfos: currentInfos,
+      text,
+      chars: text.length,
+    });
+    currentInfos = [];
+    currentChars = 0;
+  };
+
+  for (const info of source) {
+    const infoChars = renderImageInfosForPrompt([info]).length;
+    const nextChars = currentChars + (currentInfos.length ? 2 : 0) + infoChars;
+    if (currentInfos.length && nextChars > limit) {
+      flush();
+    }
+    currentInfos.push(info);
+    currentChars += (currentInfos.length > 1 ? 2 : 0) + infoChars;
   }
   flush();
 
@@ -823,6 +903,56 @@ function buildRecoveryMessages(documentName, items, missingBlocks, segmentMeta =
   ];
 }
 
+/** 渲染图片上下文列表（编号 + 图注 + 所在段落上下文） */
+function renderImageInfosForPrompt(imageInfos) {
+  return (imageInfos || []).map((info) => [
+    `[${info.index}]`,
+    `caption: ${info.caption || '无'}`,
+    'context:',
+    info.context || '无',
+  ].join('\n')).join('\n\n');
+}
+
+/** L1：图片上下文前缀 */
+function buildImageContextsPrefixMessage(imageInfos) {
+  return {
+    role: 'user',
+    content: [
+      '以下是需要分析的图片列表，每张图片包含：编号、图注(caption)与所在段落上下文(context)。',
+      '<images>',
+      renderImageInfosForPrompt(imageInfos),
+      '</images>',
+    ].join('\n'),
+  };
+}
+
+/** L2：图片条目分析任务 */
+function buildImageItemsTaskMessage(documentName) {
+  const typeLines = IMAGE_TYPE_VOCABULARY.map((type) => `- ${type.description}`).join('\n');
+  return {
+    role: 'user',
+    content: [
+      `文档名：${documentName}`,
+      '你是投标资料知识库图片分析助手。你根据每张图片的图注和所在段落上下文，为每张图片生成可复用的知识条目字段。',
+      '任务：为图片列表中的每一张图片生成 title、resume、image_type，并按图片编号返回。',
+      '要求：',
+      '1. title：图片条目标题，概括图片主题，4-20 字；尽量沿用图注(caption)的表达。',
+      '2. resume：图片上下文摘要，说明图片展示的内容及其在投标文件编写中的用途，40-120 字。',
+      '3. image_type：必须从以下类型中选择最接近的一个，不得自造类型：',
+      typeLines,
+      '只返回 JSON：{"items":[{"index":1,"title":"","resume":"","image_type":""}]}',
+      '必须覆盖全部图片编号；不要输出 Markdown 或解释文字。',
+    ].join('\n'),
+  };
+}
+
+function buildImageItemsMessages(documentName, imageInfos) {
+  return [
+    buildImageContextsPrefixMessage(imageInfos),
+    buildImageItemsTaskMessage(documentName),
+  ];
+}
+
 function getRequestBudget(aiService) {
   const config = typeof aiService?.getConfig === 'function' ? aiService.getConfig() : {};
   const rawLimit = Number(config?.context_length_limit);
@@ -974,6 +1104,42 @@ function validateRecoveryResult(value) {
   }
 }
 
+/** 将 LLM 图片条目结果按图片编号归一化；缺字段时保留空值，由组装阶段兜底 */
+function normalizeImageItemsResult(parsed, imageInfos) {
+  const list = Array.isArray(parsed) ? parsed : parsed?.items;
+  if (!Array.isArray(list)) return [];
+  const byIndex = new Map();
+  list.forEach((item) => {
+    const index = Number(item?.index);
+    if (Number.isFinite(index) && index >= 1) byIndex.set(index, item);
+  });
+  return (imageInfos || []).map((info) => {
+    const item = byIndex.get(info.index) || {};
+    return {
+      index: info.index,
+      title: String(item.title || '').trim(),
+      resume: String(item.resume || item.summary || '').trim(),
+      image_type: normalizeImageType(item.image_type),
+    };
+  });
+}
+
+function validateImageItemsResult(value) {
+  if (!Array.isArray(value?.items)) {
+    throw new Error('AI 返回结果缺少 items 数组');
+  }
+}
+
+/** LLM 批次失败时该批图片的兜底结果（标题退化用图注、resume 用所在块摘要、类型用其他图） */
+function buildFallbackImageResults(imageInfos) {
+  return (imageInfos || []).map((info) => ({
+    index: info.index,
+    title: '',
+    resume: '',
+    image_type: IMAGE_TYPE_FALLBACK,
+  }));
+}
+
 function collectHandledBlockIds(matches, discarded, systemDiscarded) {
   const handled = new Set();
   matches.forEach((match) => match.block_ids.forEach((id) => handled.add(id)));
@@ -987,13 +1153,17 @@ function getMissingBlocks(blocks, matches, discarded, systemDiscarded) {
   return blocks.filter((block) => !handled.has(block.id));
 }
 
-function nextKnowledgeItemId(items) {
+function getMaxKnowledgeItemIdNumber(items) {
   let max = 0;
-  items.forEach((item) => {
+  (items || []).forEach((item) => {
     const match = /^K(\d+)$/.exec(item.id || '');
     if (match) max = Math.max(max, Number(match[1]));
   });
-  return `K${String(max + 1).padStart(6, '0')}`;
+  return max;
+}
+
+function nextKnowledgeItemId(items) {
+  return `K${String(getMaxKnowledgeItemIdNumber(items) + 1).padStart(6, '0')}`;
 }
 
 function createFinalItems(items, matches, blocks, fileName) {
@@ -1006,7 +1176,10 @@ function createFinalItems(items, matches, blocks, fileName) {
 
   return items.map((item) => {
     const sourceBlockIds = blocksByItem.get(item.id) || [];
-    const content = sourceBlockIds.map((id) => blockMap.get(id)?.content || '').filter(Boolean).join('\n\n').trim();
+    // 文字条目正文保持不含图片语法，避免图片 Markdown 混入正文生成素材
+    const content = stripMarkdownImages(
+      sourceBlockIds.map((id) => blockMap.get(id)?.content || '').filter(Boolean).join('\n\n'),
+    ).trim();
     return {
       id: item.id,
       title: item.title,
@@ -1016,6 +1189,109 @@ function createFinalItems(items, matches, blocks, fileName) {
       source_file: fileName,
     };
   }).filter((item) => item.content);
+}
+
+/** 从带图 Markdown 中提取图片引用：图注、落盘地址、所在块与上下文 */
+function extractImageInfos(markdown, blocks, filteredBlocks) {
+  const text = String(markdown || '');
+  const matches = [...text.matchAll(markdownImagePattern)];
+  if (!matches.length) return [];
+
+  const allBlocks = [...(blocks || []), ...(filteredBlocks || [])];
+  const blockById = new Map(allBlocks.map((block) => [block.id, block]));
+  const lines = text.split(/\r?\n/);
+  const figureCaptionPattern = /^图(?:\s*\d+(?:[-–.]\s*\d+)*)?\s*[:：]\s*(.+)$/;
+
+  const infos = [];
+  matches.forEach((match) => {
+    const alt = String(match.groups?.alt || '').replace(/\s+/g, ' ').trim();
+    const assetUrl = cleanMarkdownImageTarget(match.groups?.target || '');
+    if (!assetUrl) return;
+    const lineIndex = text.slice(0, match.index ?? 0).split(/\r?\n/).length - 1;
+
+    // 所在块：优先保留块；图片单独成块被过滤时退回被过滤块，保证溯源可用
+    const keptIds = (blocks || []).filter((block) => String(block.content || '').includes(assetUrl)).map((block) => block.id);
+    const sourceBlockIds = keptIds.length
+      ? keptIds
+      : (filteredBlocks || []).filter((block) => String(block.content || '').includes(assetUrl)).map((block) => block.id);
+
+    // 图注：优先 alt；alt 为空时取紧邻的「图：xxx」式文本（向上/向下各看 3 行，跳过空行），再取块内「图：xxx」或最近标题
+    let caption = alt;
+    if (!caption) {
+      const nearbyLines = [lines[lineIndex]];
+      for (let offset = 1; offset <= 3; offset += 1) {
+        nearbyLines.push(lines[lineIndex - offset]);
+        nearbyLines.push(lines[lineIndex + offset]);
+      }
+      for (const line of nearbyLines) {
+        const figure = figureCaptionPattern.exec(stripMarkdownImages(line || '').trim());
+        if (figure) {
+          caption = figure[1].trim();
+          break;
+        }
+      }
+    }
+    if (!caption && sourceBlockIds.length) {
+      const firstBlock = blockById.get(sourceBlockIds[0]);
+      const blockFigureLine = stripMarkdownImages(firstBlock?.content || '')
+        .split(/\r?\n/)
+        .map((line) => figureCaptionPattern.exec(line.trim()))
+        .find(Boolean);
+      if (blockFigureLine) {
+        caption = blockFigureLine[1].trim();
+      } else {
+        const heading = [...(firstBlock?.heading_path || [])].pop();
+        caption = stripBoldMarker(String(heading || '')).trim();
+      }
+    }
+
+    const blockText = sourceBlockIds
+      .map((id) => stripMarkdownImages(blockById.get(id)?.content || ''))
+      .filter((value) => value.trim())
+      .join('\n\n');
+
+    infos.push({
+      index: 0, // 去重后按顺序重排
+      alt,
+      caption,
+      asset_url: assetUrl,
+      source_block_ids: sourceBlockIds,
+      context: truncateText(blockText.trim(), imageContextCharsLimit),
+      fallback_resume: truncateText(blockText.replace(/\s+/g, ' ').trim(), imageResumeFallbackChars),
+    });
+  });
+
+  // 同一落盘地址只建一条图条目，编号按去重后顺序重排
+  const seen = new Set();
+  return infos
+    .filter((info) => {
+      if (seen.has(info.asset_url)) return false;
+      seen.add(info.asset_url);
+      return true;
+    })
+    .map((info, index) => ({ ...info, index: index + 1 }));
+}
+
+/** 组装图条目：LLM 字段缺失或失败时用图注/所在块摘要兜底，单图失败不影响整批 */
+function createImageItems(imageInfos, llmResults, fileName, candidateItems) {
+  const resultsByIndex = new Map((llmResults || []).map((item) => [Number(item?.index), item]));
+  const startId = getMaxKnowledgeItemIdNumber(candidateItems);
+  return (imageInfos || []).map((info, offset) => {
+    const llm = resultsByIndex.get(info.index) || {};
+    const title = String(llm.title || info.caption || '图片').trim() || '图片';
+    const resume = String(llm.resume || info.fallback_resume || title).trim();
+    return {
+      id: `K${String(startId + offset + 1).padStart(6, '0')}`,
+      item_kind: 'image',
+      title,
+      resume,
+      content: `![${String(title).replace(/[\[\]\r\n]+/g, ' ').trim()}](${info.asset_url})`,
+      image_type: normalizeImageType(llm.image_type),
+      asset_url: info.asset_url,
+      source_block_ids: info.source_block_ids,
+      source_file: fileName,
+    };
+  });
 }
 
 function createReport({ blocks, filteredBlocks, candidateItems, finalItems, matches, discarded, systemDiscarded, recoveryAttempts, batchSize }) {
@@ -1182,6 +1458,7 @@ function createKnowledgeBaseService({ app, aiService, configStore, knowledgeBase
       let firstItems = getStepItems(documentId, 'extract_first_items');
       let supplementItems = getStepItems(documentId, 'extract_supplement_items');
       let candidateItems = knowledgeBaseStore.readCandidateItems(documentId);
+      let imageItems = getStepItems(documentId, 'extract_image_items');
 
       const copyStep = getStep(documentId, 'copy_source');
       if (stepCanReuse(copyStep, fs.existsSync(sourcePath))) {
@@ -1214,9 +1491,10 @@ function createKnowledgeBaseService({ app, aiService, configStore, knowledgeBase
         firstItems = null;
         supplementItems = null;
         candidateItems = [];
+        imageItems = null;
         updateDocument(documentId, { status: 'converting', progress: 15, message: '正在转换为 Markdown', error: null }, webContents);
         const result = await runDocumentStep(documentId, 'convert_markdown', async () => {
-          const parsedMarkdown = stripMarkdownFence((await parseDocumentWithConfig(app, sourcePath, config, { assetScope: `knowledge-${documentId}`, preserveImages: false })).trim());
+          const parsedMarkdown = stripMarkdownFence((await parseDocumentWithConfig(app, sourcePath, config, { assetScope: `knowledge-${documentId}`, preserveImages: true })).trim());
           if (!parsedMarkdown) throw new Error('文档未解析出有效 Markdown 内容');
           await fsp.writeFile(markdownPath, `${parsedMarkdown}\n`, 'utf-8');
           knowledgeBaseStore.updateMarkdownMetadata(documentId, parsedMarkdown);
@@ -1236,6 +1514,7 @@ function createKnowledgeBaseService({ app, aiService, configStore, knowledgeBase
         firstItems = null;
         supplementItems = null;
         candidateItems = [];
+        imageItems = null;
         const result = await runDocumentStep(documentId, 'build_blocks', async () => {
           const rawBlocks = createRawBlocks(markdown);
           const semanticBlocks = mergeSemanticBlocks(rawBlocks);
@@ -1479,6 +1758,91 @@ function createKnowledgeBaseService({ app, aiService, configStore, knowledgeBase
         if (!result?.candidate_item_count || !candidateItems.length) throw new Error('AI 未提取出可用知识条目');
       }
 
+      const imageStep = getStep(documentId, 'extract_image_items');
+      if (stepCanReuse(imageStep, Array.isArray(imageItems))) {
+        if (!imageStep) knowledgeBaseStore.saveDocumentStep(documentId, 'extract_image_items', { status: 'success', result: { items: imageItems } });
+        debugLog(documentId, 'prepare:reuse-image-items', { item_count: imageItems.length });
+      } else {
+        knowledgeBaseStore.clearDocumentProcessingFromStep(documentId, 'extract_image_items');
+        updateDocument(documentId, { status: 'extracting', progress: 64, message: 'AI 正在分析文档图片', error: null }, webContents);
+        const result = await runDocumentStep(documentId, 'extract_image_items', async () => {
+          const imageInfos = extractImageInfos(markdown, blocks, filteredBlocks);
+          debugLog(documentId, 'ai:image-items:plan', {
+            image_count: imageInfos.length,
+            block_count: blocks.length,
+            filtered_block_count: filteredBlocks.length,
+            execution_mode: 'serial',
+            layout: 'image_context_prefix',
+          });
+          if (!imageInfos.length) {
+            return { items: [], image_count: 0 };
+          }
+
+          // 多张图一次请求，超预算按上下文长度分批；单批失败用兜底字段，不中断整个文档索引
+          const imageTaskShell = buildImageItemsTaskMessage(document.file_name);
+          const imageSegmentLimit = Math.max(1, getKnowledgeBaseSegmentLimit(aiService, [imageTaskShell]));
+          const imageSegments = packImageInfosIntoSegments(imageInfos, imageSegmentLimit);
+          debugLog(documentId, 'ai:image-items:segments', {
+            image_count: imageInfos.length,
+            segment_total: imageSegments.length,
+            segment_limit: imageSegmentLimit,
+          });
+
+          const llmResults = [];
+          let failedSegmentCount = 0;
+          for (const segment of imageSegments) {
+            const imageMessages = buildImageItemsMessages(document.file_name, segment.imageInfos);
+            debugLog(documentId, 'ai:image-items:start', {
+              segment_index: segment.index,
+              segment_total: segment.total,
+              segment_chars: segment.chars,
+              image_count: segment.imageInfos.length,
+              prefix_chars: String(imageMessages[0]?.content || '').length,
+              suffix_chars: String(imageMessages[1]?.content || '').length,
+              prompt: getPromptSummary(imageMessages),
+            });
+            try {
+              const parsed = await aiService.collectJsonResponse({
+                messages: imageMessages,
+                response_format: { type: 'json_object' },
+                logTitle: imageSegments.length > 1
+                  ? `知识库图片条目分析-${document.file_name}-第${segment.index}批`
+                  : `知识库图片条目分析-${document.file_name}`,
+                normalizer: (value) => ({ items: normalizeImageItemsResult(value, segment.imageInfos) }),
+                validator: validateImageItemsResult,
+                failureMessage: '知识库图片条目分析失败，AI 未返回有效 JSON',
+                progressLabel: '知识库图片条目分析',
+              });
+              const items = Array.isArray(parsed?.items) ? parsed.items : [];
+              llmResults.push(...items);
+              debugLog(documentId, 'ai:image-items:segment-done', {
+                segment_index: segment.index,
+                result_count: items.length,
+              });
+            } catch (error) {
+              // 单批图片分析失败时用兜底字段，不因单图失败中断整个文档索引
+              failedSegmentCount += 1;
+              llmResults.push(...buildFallbackImageResults(segment.imageInfos));
+              debugLog(documentId, 'ai:image-items:segment-failed', {
+                segment_index: segment.index,
+                image_count: segment.imageInfos.length,
+                message: error.message || String(error),
+              });
+            }
+          }
+
+          const items = createImageItems(imageInfos, llmResults, document.file_name, candidateItems);
+          debugLog(documentId, 'ai:image-items:done', {
+            image_count: imageInfos.length,
+            item_count: items.length,
+            failed_segment_count: failedSegmentCount,
+            sample: getItemSample(items),
+          });
+          return { items, image_count: items.length };
+        });
+        imageItems = result.items;
+      }
+
       updateDocument(documentId, {
         status: 'ready_for_matching',
         progress: 65,
@@ -1522,6 +1886,7 @@ function createKnowledgeBaseService({ app, aiService, configStore, knowledgeBase
       const blocks = knowledgeBaseStore.readBlocks(documentId);
       const filteredBlocks = knowledgeBaseStore.readFilteredBlocks(documentId);
       const initialItems = knowledgeBaseStore.readCandidateItems(documentId);
+      const imageItems = getStepItems(documentId, 'extract_image_items') || [];
       if (!blocks.length) throw new Error('缺少正文 block，请重新上传文档');
       if (!initialItems.length) throw new Error('缺少候选知识条目，请等待条目提取完成');
 
@@ -1537,6 +1902,7 @@ function createKnowledgeBaseService({ app, aiService, configStore, knowledgeBase
         block_count: blocks.length,
         filtered_block_count: filteredBlocks.length,
         initial_item_count: initialItems.length,
+        image_item_count: imageItems.length,
         segment_total: blockSegments.length,
         segment_limit: unifiedPack.blockSegmentLimit,
         reserve: unifiedPack.reserve,
@@ -1943,7 +2309,8 @@ function createKnowledgeBaseService({ app, aiService, configStore, knowledgeBase
               const blockIds = [...new Set(item.block_ids || [])].filter((id) => blockOrder.has(id));
               const ranges = compressBlockIdsToRanges(blockIds, blockOrder);
               if (!ranges.length) return null;
-              const id = nextKnowledgeItemId(items);
+              // 图条目已占用一部分 K 编号，补漏新增文字条目需跳过图条目编号避免冲突
+              const id = nextKnowledgeItemId([...items, ...imageItems]);
               const next = { id, title: item.title, summary: item.summary };
               items.push(next);
               recoveredMatches.push({ id, ranges, block_ids: blockIds });
@@ -2014,7 +2381,11 @@ function createKnowledgeBaseService({ app, aiService, configStore, knowledgeBase
 
       updateDocument(documentId, { status: 'saving', progress: 98, message: '正在回填正文并保存知识条目' }, webContents);
       const saveResult = await runDocumentStep(documentId, 'save_result', async () => {
-        const finalItems = createFinalItems(recoveryResult.items, recoveryResult.matches, blocks, document.file_name);
+        // 文字条目 + 图条目合并落库，图条目来自 prepare 阶段的 extract_image_items 缓存
+        const finalItems = [
+          ...createFinalItems(recoveryResult.items, recoveryResult.matches, blocks, document.file_name),
+          ...imageItems,
+        ];
         const report = createReport({
           blocks,
           filteredBlocks,
@@ -2082,6 +2453,10 @@ function createKnowledgeBaseService({ app, aiService, configStore, knowledgeBase
     },
     search(request) {
       return knowledgeBaseStore.search(request);
+    },
+
+    listImageItems(request) {
+      return knowledgeBaseStore.listImageItems(request);
     },
 
     createFolder(name) {
@@ -2299,16 +2674,23 @@ module.exports = {
     renderBlocksForPrompt,
     packBlocksIntoSegments,
     packItemsIntoSegments,
+    packImageInfosIntoSegments,
     getKnowledgeBaseSegmentLimit,
     buildUnifiedBlockSegments,
     buildInitialItemMessages,
     buildSupplementItemMessages,
     buildMatchMessages,
     buildRecoveryMessages,
+    buildImageItemsMessages,
     mergeTitleSummaryItems,
     mergeMatchResults,
     normalizeCandidateItems,
     normalizeMatchResult,
     normalizeRecoveryResult,
+    normalizeImageItemsResult,
+    normalizeImageType,
+    stripMarkdownImages,
+    extractImageInfos,
+    createImageItems,
   },
 };

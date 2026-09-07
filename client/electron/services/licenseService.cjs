@@ -399,6 +399,11 @@ function createLicenseService({ app, configStore }) {
       return localStatus;
     }
 
+    // 离线模式：跳过远程刷新，直接保留本地授权评估状态。
+    if (configStore.load()?.offline_mode === true) {
+      return localStatus;
+    }
+
     const buildAttestation = readBuildAttestation();
     const body = {
       projectName: PROJECT_NAME,

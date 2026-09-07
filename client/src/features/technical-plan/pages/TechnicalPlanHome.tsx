@@ -345,6 +345,7 @@ function TechnicalPlanHome({ workflowKind, registerLeaveGuard, onSectionChange }
   const [bidAnalysisFocusRequest, setBidAnalysisFocusRequest] = useState<{ taskId: string } | null>(null);
   const [globalFactsFocusRequest, setGlobalFactsFocusRequest] = useState<{ groupId: string } | null>(null);
   const [isResetting, setIsResetting] = useState(false);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const sortGuardRef = useRef<OutlineSortGuard | null>(null);
   const sortLeaveResolverRef = useRef<((allowed: boolean) => void) | null>(null);
   const outlineWordControlLeaveResolverRef = useRef<((allowed: boolean) => void) | null>(null);
@@ -1076,12 +1077,14 @@ function TechnicalPlanHome({ workflowKind, registerLeaveGuard, onSectionChange }
     if (saved) setState((prev) => ({ ...prev, ...saved }));
   };
 
+  const requestResetTechnicalPlan = () => {
+    if (isResetting) return;
+    setResetConfirmOpen(true);
+  };
+
   const resetTechnicalPlan = async () => {
     if (isResetting) return;
-    if (!window.confirm('会清空整个技术方案编写进度，是否确认？')) {
-      return;
-    }
-
+    setResetConfirmOpen(false);
     setIsResetting(true);
     showToast('正在重置技术方案，将停止后台任务并清理工作区文件，请稍候…', 'info');
     try {
@@ -1288,7 +1291,7 @@ function TechnicalPlanHome({ workflowKind, registerLeaveGuard, onSectionChange }
           variant: 'danger' as const,
           disabled: isResetting,
           tooltip: isResetting ? '正在停止后台任务并清理工作区文件，请稍候' : '清空当前技术方案流程',
-          onClick: resetTechnicalPlan,
+          onClick: requestResetTechnicalPlan,
         },
         {
           id: 'home',
@@ -1418,6 +1421,22 @@ function TechnicalPlanHome({ workflowKind, registerLeaveGuard, onSectionChange }
           <p>后续接入旧方案导入、章节扩写和人工校准。</p>
         </section>
       )}
+
+      <AppDialog
+        open={resetConfirmOpen}
+        onOpenChange={(open) => !open && !isResetting && setResetConfirmOpen(false)}
+        kicker="结果提醒"
+        title="确定重置技术方案吗？"
+        description="会清空整个技术方案编写进度，停止后台任务并清理工作区文件，重置后不可恢复。"
+        actions={(
+          <>
+            <button type="button" className="secondary-action" onClick={() => setResetConfirmOpen(false)} disabled={isResetting}>取消</button>
+            <button type="button" className="danger-action" onClick={() => { void resetTechnicalPlan(); }} disabled={isResetting}>
+              {isResetting ? '重置中...' : '确认重置'}
+            </button>
+          </>
+        )}
+      />
 
       <AppDialog
         open={sortLeaveDialogOpen}

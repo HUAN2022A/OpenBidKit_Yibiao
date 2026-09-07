@@ -27,6 +27,7 @@ const pageLabels = {
   'feasibility-report/content': '可行性研究报告 - 正文生成',
   'business-bid': '商务标',
   'knowledge-base': '知识库',
+  'image-knowledge-base': '图片知识库',
   resources: '资源下载',
   'knowledge-base/library': '知识库 - 文档列表',
   'knowledge-base/viewer/items': '知识库 - 知识条目',

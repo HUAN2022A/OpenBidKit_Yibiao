@@ -12,6 +12,7 @@ import ExportFormatPage from '../features/export-format/pages/ExportFormatPage';
 import MyTemplatesPage from '../features/export-format/pages/MyTemplatesPage';
 import DuplicateCheckPage from '../features/duplicate-check/pages/DuplicateCheckPage';
 import KnowledgeBasePage from '../features/knowledge-base/pages/KnowledgeBasePage';
+import ImageKnowledgeBasePage from '../features/image-knowledge-base/pages/ImageKnowledgeBasePage';
 import RejectionCheckPage from '../features/rejection-check/pages/RejectionCheckPage';
 import ResourcesPage from '../features/resources/pages/ResourcesPage';
 import PluginsPage from '../features/plugins/pages/PluginsPage';
@@ -57,6 +58,9 @@ function AppRouter({ activeSection, developerMode, onDeveloperModeChange, onSect
       return <BusinessBidPage />;
     case 'document-knowledge-base':
       return <KnowledgeBasePage />;
+    case 'image-knowledge-base':
+      // 页面 prop 约定为 string；SectionId 是 string 的联合子集，桥接处收窄。
+      return <ImageKnowledgeBasePage onSectionChange={(section) => onSectionChange(section as SectionId)} />;
     case 'resources':
       return <ResourcesPage />;
     case 'plugin-manager':

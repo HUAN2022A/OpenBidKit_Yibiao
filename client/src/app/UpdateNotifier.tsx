@@ -1,6 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog';
 import { useEffect, useRef, useState } from 'react';
-import { dismissRemoteNotice, fetchRemoteNotice, hasDismissedRemoteNotice, reportRemoteNoticeDelivered, type RemoteNotice } from '../shared/remoteNotice';
+import { dismissRemoteNotice, fetchRemoteNotice, hasDismissedRemoteNotice, loadOfflineModeEnabled, reportRemoteNoticeDelivered, type RemoteNotice } from '../shared/remoteNotice';
 import { MarkdownFullscreenViewer, MarkdownRenderer, useToast } from '../shared/ui';
 import type { PluginUpdateInfo } from '../shared/types/ipc';
 import { hasPromptedUpdate, showUpdateReadyToast } from '../shared/updateToast';
@@ -138,6 +138,10 @@ function UpdateNotifier({ noticeEnabled }: UpdateNotifierProps) {
       if (updateCheckingRef.current) {
         return;
       }
+      if (await loadOfflineModeEnabled()) {
+        // 离线模式：静默跳过升级检查，不发起任何网络请求。
+        return;
+      }
       updateCheckingRef.current = true;
       try {
         const result = await window.yibiao?.checkUpdate();
@@ -159,6 +163,10 @@ function UpdateNotifier({ noticeEnabled }: UpdateNotifierProps) {
     };
 
     const checkRemoteNotice = async () => {
+      if (await loadOfflineModeEnabled()) {
+        // 离线模式：静默跳过公告检查，不拉取、不弹窗、不上报送达。
+        return;
+      }
       try {
         console.info(noticeLogPrefix, 'check start');
         const notice = await fetchRemoteNotice();

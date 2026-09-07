@@ -279,6 +279,7 @@ const defaultConfig = {
   agent_mode_scenarios: defaultAgentModeScenarios,
   agent_auto_answer_enabled: DEFAULT_AGENT_AUTO_ANSWER_ENABLED,
   developer_mode: false,
+  offline_mode: false,
   developer_token_stats_auto_open: false,
   developer_agent_monitor_auto_open: false,
   storage_cleanup_version: 0,
@@ -303,6 +304,11 @@ function isTextModelProvider(value) {
 
 function isImageModelProvider(value) {
   return imageModelProviders.includes(value);
+}
+
+// 判断离线模式是否启用；入参为归一化后的配置对象，缺省视为未启用。
+function isOfflineModeEnabled(config) {
+  return Boolean(config && config.offline_mode === true);
 }
 
 function normalizeAiRequestMode(value, fallback = 'stream') {
@@ -738,6 +744,7 @@ function normalizeConfig(config) {
       ? defaultConfig.agent_auto_answer_enabled
       : Boolean(source.agent_auto_answer_enabled),
     developer_mode: source.developer_mode === undefined ? defaultConfig.developer_mode : Boolean(source.developer_mode),
+    offline_mode: source.offline_mode === undefined ? defaultConfig.offline_mode : Boolean(source.offline_mode),
     developer_token_stats_auto_open: source.developer_token_stats_auto_open === undefined ? defaultConfig.developer_token_stats_auto_open : Boolean(source.developer_token_stats_auto_open),
     developer_agent_monitor_auto_open: source.developer_agent_monitor_auto_open === undefined ? defaultConfig.developer_agent_monitor_auto_open : Boolean(source.developer_agent_monitor_auto_open),
     storage_cleanup_version: Number.isFinite(Number(source.storage_cleanup_version))
@@ -838,4 +845,5 @@ function createConfigStore(app) {
 
 module.exports = {
   createConfigStore,
+  isOfflineModeEnabled,
 };

@@ -188,6 +188,11 @@ class PluginService {
    * 从服务器获取可用插件列表
    */
   async fetchAvailablePlugins() {
+    // 离线模式：不请求插件市场，静默返回空市场（页面已有离线占位，检查更新路径静默跳过）。
+    if (this.services?.configStore?.load?.()?.offline_mode === true) {
+      return [];
+    }
+
     // 使用缓存，5分钟内不重复请求
     const now = Date.now();
     if (this.marketCache.length > 0 && now - this.marketCacheTime < 5 * 60 * 1000) {

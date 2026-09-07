@@ -12,9 +12,20 @@ function formatPluginOperationError(action: string, error: unknown) {
   return `${action}失败：${message}`;
 }
 
+/** 读取配置并判断离线模式：旧数据缺省按 false，配置读取失败时保持在线行为 */
+async function readOfflineMode(): Promise<boolean> {
+  try {
+    const config = await window.yibiao?.config?.load();
+    return Boolean(config && (config as { offline_mode?: boolean }).offline_mode === true);
+  } catch {
+    return false;
+  }
+}
+
 function PluginsPage() {
   const [plugins, setPlugins] = useState<AvailablePlugin[]>([]);
   const [loading, setLoading] = useState(false);
+  const [offlineMode, setOfflineMode] = useState(false);
   const [operatingPluginId, setOperatingPluginId] = useState<string | null>(null);
   const [uninstallTarget, setUninstallTarget] = useState<AvailablePlugin | null>(null);
   const [errorDialogPlugin, setErrorDialogPlugin] = useState<AvailablePlugin | null>(null);
@@ -41,8 +52,13 @@ function PluginsPage() {
   }, []);
 
   const loadPlugins = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
+      const offline = await readOfflineMode();
+      setOfflineMode(offline);
+      if (offline) {
+        return; // 离线模式：静默跳过插件市场请求，页面展示离线占位
+      }
       const availablePlugins = await window.yibiao?.plugins?.getAvailablePlugins();
       setPlugins(availablePlugins || []);
     } catch (error) {
@@ -53,6 +69,9 @@ function PluginsPage() {
   };
 
   const handleInstall = async (pluginId: string) => {
+    if (offlineMode) {
+      return; // 离线模式：静默跳过在线安装
+    }
     setOperatingPluginId(pluginId);
     try {
       showToast('正在安装插件...', 'info');
@@ -108,6 +127,9 @@ function PluginsPage() {
   };
 
   const handleUpdate = async (pluginId: string) => {
+    if (offlineMode) {
+      return; // 离线模式：静默跳过在线更新
+    }
     setOperatingPluginId(pluginId);
     const toastId = showToast('正在更新插件...', 'info', { persistent: true });
 
@@ -163,6 +185,9 @@ function PluginsPage() {
     }
   };
   const handleRefresh = async () => {
+    if (offlineMode) {
+      return; // 离线模式：静默跳过，不请求插件市场
+    }
     setLoading(true);
     try {
       await window.yibiao?.plugins?.refreshMarket();
@@ -195,14 +220,16 @@ function PluginsPage() {
             <button type="button" className="primary-action" onClick={handleOfflineInstall} disabled={controlsDisabled}>
               离线安装
             </button>
-            <button type="button" className="secondary-action" onClick={handleRefresh} disabled={controlsDisabled}>
+            <button type="button" className="secondary-action" onClick={handleRefresh} disabled={controlsDisabled || offlineMode}>
               刷新市场
             </button>
           </div>
         </div>
 
         <div className="plugins-list">
-          {loading && plugins.length === 0 ? (
+          {offlineMode ? (
+            <EmptyState title="离线模式已开启，插件市场不可用" hint="已安装插件的启用、禁用、卸载与“离线安装”不受影响。" />
+          ) : loading && plugins.length === 0 ? (
             <EmptyState title="正在读取插件" hint="请稍候..." />
           ) : plugins.length === 0 ? (
             <EmptyState title="暂无可用插件" hint="插件市场正在建设中，稍后再来看看。" />

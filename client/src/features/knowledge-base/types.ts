@@ -1,3 +1,5 @@
+export type KnowledgeItemKind = 'text' | 'image';
+
 export interface KnowledgeItem {
   id: string;
   title: string;
@@ -5,6 +7,12 @@ export interface KnowledgeItem {
   content: string;
   source_block_ids?: string[];
   source_file?: string;
+  /** 条目类型：'text' 为文字条目（数据库默认），'image' 为图片条目 */
+  item_kind?: KnowledgeItemKind;
+  /** 图片条目的配图类型标签（复用配图规划的 image_type 分类，如“进度网络图”），仅 image 条目有值 */
+  image_type?: string;
+  /** 图片条目图本体的本地 URL（yibiao-asset:// 协议），仅 image 条目有值 */
+  asset_url?: string;
 }
 export type KnowledgeSearchMatchField = 'file_name' | 'title' | 'resume' | 'content';
 

@@ -206,7 +206,8 @@
   box-shadow: 0 10px 28px rgba(33, 116, 253, 0.08);
 }
 
-.knowledge-create-folder-bar input {
+.knowledge-create-folder-bar input,
+.knowledge-rename-input {
   flex: 1;
   min-width: 180px;
   height: 42px;

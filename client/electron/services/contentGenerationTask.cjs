@@ -3,6 +3,7 @@ const { AI_QUEUE_SCOPE_PAUSED } = require('../utils/aiRequestQueue.cjs');
 const { createNoopDeveloperLogger } = require('../utils/developerLog.cjs');
 const {
   ILLUSTRATION_PLAN_VERSION,
+  applyIllustrationReuse,
   buildIllustrationPlanningContext,
   buildIllustrationPlanningPrompt,
   resolveIllustrationPlan,
@@ -2100,21 +2101,40 @@ function normalizeReferenceDocumentIds(storedPlan) {
 function loadContentKnowledgeReferences(knowledgeBaseService, documentIds, log) {
   if (!documentIds.length) {
     log('本次正文编排未选择参考知识库。');
-    return { items: [], contentMap: new Map() };
+    return { items: [], contentMap: new Map(), imageItems: [] };
   }
   if (!knowledgeBaseService?.readReferences) {
     log('未找到知识库读取服务，正文编排不使用知识库。');
-    return { items: [], contentMap: new Map() };
+    return { items: [], contentMap: new Map(), imageItems: [] };
   }
 
   try {
     const references = knowledgeBaseService.readReferences(documentIds);
     const items = [];
     const contentMap = new Map();
+    const imageItems = [];
     for (const reference of Array.isArray(references) ? references : []) {
       const documentId = String(reference?.document?.id || '').trim();
       for (const item of Array.isArray(reference?.items) ? reference.items : []) {
         const itemId = String(item?.id || '').trim();
+        // 按 item_kind 分流：图条目只进入配图复用候选，绝不参与正文编排与正文素材注入；
+        // 存量条目没有 item_kind 时按 text 处理，保持原有正文链路行为。
+        const itemKind = String(item?.item_kind || 'text').trim().toLowerCase();
+        if (itemKind === 'image') {
+          const title = String(item?.title || '').trim();
+          const resume = String(item?.resume || '').trim();
+          if (reference?.document?.status === 'success' && documentId && itemId && title && resume) {
+            imageItems.push({
+              id: `${documentId}::${itemId}`,
+              title,
+              resume,
+              image_type: String(item?.image_type || '').trim(),
+              asset_url: String(item?.asset_url || '').trim(),
+              source_file: String(item?.source_file || '').trim(),
+            });
+          }
+          continue;
+        }
         const content = String(item?.content || '').trim();
         if (documentId && itemId && content) contentMap.set(`${documentId}::${itemId}`, { content });
         const title = String(item?.title || '').trim();
@@ -2126,10 +2146,11 @@ function loadContentKnowledgeReferences(knowledgeBaseService, documentIds, log) 
     }
     log(items.length ? `正文编排已读取 ${items.length} 条知识库轻量条目。` : '未读取到可用知识库轻量条目，正文编排不使用知识库。');
     if (contentMap.size) log(`正文生成可用知识库正文素材 ${contentMap.size} 条。`);
-    return { items, contentMap };
+    if (imageItems.length) log(`正文生成已读取 ${imageItems.length} 条知识库图条目，仅用于配图复用候选。`);
+    return { items, contentMap, imageItems };
   } catch (error) {
     log(`读取正文编排参考知识库失败，已跳过：${error.message || String(error)}`);
-    return { items: [], contentMap: new Map() };
+    return { items: [], contentMap: new Map(), imageItems: [] };
   }
 }
 
@@ -3083,6 +3104,8 @@ async function runContentGenerationTask({ aiService, agentService, workspaceStor
   let knowledgeItems = [];
   let allowedKnowledgeItemIds = new Set();
   let knowledgeContentMap = new Map();
+  // 知识库图条目候选：仅供配图复用链路使用，不进入正文编排与正文素材注入。
+  let imageItems = [];
   let sections = createInitialSections(leaves, fullRegenerate ? {} : storedPlan.contentGenerationSections);
   const touchedItemIds = new Set(contentRuntime.touched_item_ids);
   let tasksToRun = leaves.filter(({ item }) => {
@@ -3430,12 +3453,18 @@ async function runContentGenerationTask({ aiService, agentService, workspaceStor
     publishTaskUpdate({ status: 'running', progress: progressFor(leaves, sections), logs, stats: statsSnapshot() });
   }
 
-  const knowledgeReferences = loadContentKnowledgeReferences(knowledgeBaseService, referenceKnowledgeDocumentIds, (message) => {
-    logs = [...logs, message];
-  });
+  // 正文链路知识库召回：按 item_kind 分流，text 条目进入正文编排与素材注入，图条目只作配图复用候选。
+  // 仅恢复/重跑配图阶段（runOnlyIllustrationStage）时正文链路已跳过，此处不加载，
+  // 稍后由配图入口按持久化的参考文档 id 重新召回并重建 imageItems。
+  const knowledgeReferences = runOnlyIllustrationStage
+    ? { items: [], contentMap: new Map(), imageItems: [] }
+    : loadContentKnowledgeReferences(knowledgeBaseService, referenceKnowledgeDocumentIds, (message) => {
+      logs = [...logs, message];
+    });
   knowledgeItems = knowledgeReferences.items;
   allowedKnowledgeItemIds = new Set(knowledgeItems.map((item) => item.id));
   knowledgeContentMap = knowledgeReferences.contentMap;
+  imageItems = knowledgeReferences.imageItems;
 
   function getLeafContentForWords(item) {
     const section = sections[item.id];
@@ -6304,6 +6333,15 @@ workspace 文件说明：
       });
     }
 
+    // 配图复用：plan 产出后检索知识库历史相似图，命中且通过安全校验的条目直接复用历史图，
+    // 未命中或疑似含项目专有信息的按原计划生成；检索失败不中断编排，暂停类错误按既有语义抛出。
+    await applyIllustrationReuse(resolved.plan, {
+      sections,
+      imageItems,
+      aiService,
+      log: (message) => { logs = [...logs, message]; },
+    });
+
     pauseIfRequested('正文生成已在全文图片编排结果保存前暂停，本次计划未保存；继续后将重新执行。');
     contentStats.illustration_planning_step_completed = 2;
     contentStats.illustration_planning_step_label = '正在保存全文图片计划';
@@ -6395,6 +6433,26 @@ workspace 文件说明：
     async function runExecution(execution) {
       const { planItem } = execution;
       if (['success', 'error'].includes(planItem.generation?.status)) return;
+      // 复用历史图前把图片复制进生成图目录，使技术方案不再依赖知识库图片文件的生命周期；
+      // 复制失败（源文件已被删除、占用等）时放弃复用，走正常生成流程。
+      if (planItem.reuse_source?.asset_url && !String(planItem.reuse_source.asset_url).startsWith('yibiao-asset://generated-images/')) {
+        let copiedAssetUrl = null;
+        try {
+          copiedAssetUrl = workspaceStore.saveReusedIllustrationImage?.({
+            revision: illustrationPlan.revision,
+            itemId: planItem.item_id,
+            sourceAssetUrl: planItem.reuse_source.asset_url,
+          }) || null;
+        } catch (error) {
+          logs = [...logs, `复用图复制异常：${compactError(error?.message || error)}`];
+        }
+        if (copiedAssetUrl) {
+          planItem.reuse_source.asset_url = copiedAssetUrl;
+        } else {
+          logs = [...logs, `复用图复制失败，改为重新生成：${planItem.item_id}`];
+          delete planItem.reuse_source;
+        }
+      }
       persistIllustrationGeneration(planItem.item_id, { status: 'running', error: undefined }, `正在生成${planItem.kind === 'ai' ? ' AI' : planItem.kind === 'mermaid' ? ' Mermaid' : ' HTML'} 图片`);
       try {
         let result;
@@ -6661,6 +6719,16 @@ workspace 文件说明：
     } else {
       logs = [...logs, '继续图片生成，跳过已完成的正文生成、内容矫正和图片编排阶段。'];
       publishTaskUpdate({ status: 'running', progress: progressFor(leaves, sections), logs, stats: statsSnapshot() });
+    }
+
+    if (runOnlyIllustrationStage) {
+      // 任务恢复（或仅重跑配图）时正文链路已跳过：参考文档 id 已持久化在
+      // storedPlan.referenceKnowledgeDocumentIds，这里重新召回知识库图条目候选，
+      // 保证配图复用阶段在恢复后仍能拿到 imageItems。
+      const illustrationKnowledgeReferences = loadContentKnowledgeReferences(knowledgeBaseService, referenceKnowledgeDocumentIds, (message) => {
+        logs = [...logs, message];
+      });
+      imageItems = illustrationKnowledgeReferences.imageItems;
     }
 
     if (!targetItemId) {

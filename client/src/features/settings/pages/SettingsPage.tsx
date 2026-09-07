@@ -637,6 +637,8 @@ function SettingsPage({ onDeveloperModeChange }: SettingsPageProps) {
   const [agentSelfCheckResult, setAgentSelfCheckResult] = useState<AgentSelfCheckResult | null>(null);
   const [exportingAgentSelfCheckReport, setExportingAgentSelfCheckReport] = useState(false);
   const [agentAutoAnswerDraft, setAgentAutoAnswerDraft] = useState(false);
+  const [offlineMode, setOfflineMode] = useState(false);
+  const [savingOfflineMode, setSavingOfflineMode] = useState(false);
   const { showToast } = useToast();
   const { enabled: agentAutoAnswerEnabled } = useAutoAnswer();
 
@@ -712,6 +714,7 @@ function SettingsPage({ onDeveloperModeChange }: SettingsPageProps) {
         },
       }));
       setAgentAutoAnswerDraft(Boolean(config.agent_auto_answer_enabled));
+      setOfflineMode(Boolean(config.offline_mode));
       setSavedConfig(config);
       onDeveloperModeChange?.(Boolean(config.developer_mode));
     } catch (error) {
@@ -764,6 +767,7 @@ function SettingsPage({ onDeveloperModeChange }: SettingsPageProps) {
       gpu_hardware_acceleration_enabled: state.general.gpu_hardware_acceleration_enabled,
       gpu_hardware_acceleration_configured: state.general.gpu_hardware_acceleration_configured,
       developer_mode: state.general.developer_mode,
+      offline_mode: offlineMode,
       developer_token_stats_auto_open: state.general.developer_token_stats_auto_open,
       developer_agent_monitor_auto_open: state.general.developer_agent_monitor_auto_open,
     };
@@ -919,6 +923,29 @@ function SettingsPage({ onDeveloperModeChange }: SettingsPageProps) {
         gpu_hardware_acceleration_configured: true,
       },
     }));
+  };
+
+  // 切换离线模式：重新加载磁盘上的完整配置，只修改 offline_mode 后立即保存，避免覆盖其他页面的最新配置。
+  const updateOfflineMode = async (enabled: boolean) => {
+    if (savingOfflineMode) {
+      return;
+    }
+
+    try {
+      setSavingOfflineMode(true);
+      const config = await window.yibiao?.config.load();
+      if (!config) {
+        throw new Error('加载客户端配置失败');
+      }
+      const saved = await saveClientConfig({ ...config, offline_mode: enabled });
+      if (saved) {
+        setOfflineMode(enabled);
+      }
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : '离线模式保存失败', 'error');
+    } finally {
+      setSavingOfflineMode(false);
+    }
   };
 
   const updateAgentModeScenario = (key: keyof AgentModeScenariosConfig, enabled: boolean) => {
@@ -1627,6 +1654,21 @@ function SettingsPage({ onDeveloperModeChange }: SettingsPageProps) {
                 <option value="classic">经典布局</option>
               </select>
             </div>
+          </div>
+
+          <div className="settings-group-title">网络</div>
+          <div className="settings-list">
+            <label className="settings-row">
+              <div className="settings-row-copy">
+                <strong>离线模式</strong>
+                <span>开启后不再发起任何运营类外网请求（远程公告、升级检查、埋点统计、启动广告、资源与插件市场等）；AI 模型与文件解析服务为你自己配置的服务，不受影响。</span>
+              </div>
+              <AppSwitch
+                checked={offlineMode}
+                disabled={savingOfflineMode}
+                onCheckedChange={(checked) => { void updateOfflineMode(checked); }}
+              />
+            </label>
           </div>
 
           <div className="settings-group-title">更新与系统</div>
