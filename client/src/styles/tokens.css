@@ -1,16 +1,16 @@
 /* [1-25] root vars + universal box-sizing reset */
 :root {
-  --yb-primary: #2174fd;
-  --yb-primary-hover: #4098fc;
-  --yb-primary-deep: #155bd7;
-  --yb-violet: #5b54d3;
-  --yb-bg: #fafcff;
-  --yb-surface: #ffffff;
-  --yb-border: #e6e9f0;
-  --yb-border-soft: #eef2f9;
-  --yb-text: #1c2536;
-  --yb-text-soft: #66707f;
-  --yb-text-muted: #98a2b3;
+  --yb-primary: #c40000;
+  --yb-primary-hover: #d81a1a;
+  --yb-primary-deep: #ba0000;
+  --yb-violet: #8f1310;
+  --yb-bg: #e8ebf0;
+  --yb-surface: #eef1f5;
+  --yb-border: #d5dae1;
+  --yb-border-soft: #e0e4ea;
+  --yb-text: #2e2d33;
+  --yb-text-soft: #666666;
+  --yb-text-muted: #999999;
 
   /* 语义色：成功 / 警告 / 危险，各含主色、深文字、浅背景、边框四档 */
   --yb-success: #168a4a;
@@ -21,28 +21,29 @@
   --yb-warning-deep: #9a5b00;
   --yb-warning-soft: #fdf3e4;
   --yb-warning-border: #f2d8ab;
-  --yb-danger: #c83220;
+  --yb-danger: #d1452a;
   --yb-danger-deep: #a32619;
   --yb-danger-soft: #fdeeeb;
   --yb-danger-border: #f3c8c0;
 
   /* 圆角阶梯：胶囊用 pill，卡片用 xl，面板内容块用 lg/md，小控件用 sm */
-  --yb-radius-sm: 8px;
-  --yb-radius-md: 12px;
-  --yb-radius-lg: 16px;
-  --yb-radius-xl: 24px;
+  --yb-radius-sm: 6px;
+  --yb-radius-md: 10px;
+  --yb-radius-lg: 14px;
+  --yb-radius-xl: 20px;
   --yb-radius-pill: 999px;
 
   /* 分层阴影体系：由弱到强，元素层级越高、越需要强调，阴影越重 */
-  --yb-shadow-xs: 0 2px 8px rgba(23, 32, 51, 0.04);
-  --yb-shadow-sm: 0 8px 20px rgba(33, 116, 253, 0.05);
-  --yb-shadow: 0 18px 40px rgba(33, 116, 253, 0.07);
-  --yb-shadow-lg: 0 30px 64px rgba(33, 116, 253, 0.11), 0 10px 26px rgba(23, 32, 51, 0.06);
-  --yb-shadow-hover: 0 22px 46px rgba(33, 116, 253, 0.16), 0 8px 18px rgba(23, 32, 51, 0.08);
-  --yb-shadow-modal: 0 28px 72px rgba(23, 32, 51, 0.16);
+  --yb-shadow-xs: 2px 2px 4px rgba(163, 177, 198, 0.32), -2px -2px 4px rgba(255, 255, 255, 0.72);
+  --yb-shadow-sm: 4px 4px 10px rgba(163, 177, 198, 0.36), -4px -4px 10px rgba(255, 255, 255, 0.78);
+  --yb-shadow: 8px 8px 18px rgba(163, 177, 198, 0.4), -8px -8px 18px rgba(255, 255, 255, 0.85);
+  --yb-shadow-lg: 12px 12px 28px rgba(163, 177, 198, 0.44), -12px -12px 28px rgba(255, 255, 255, 0.9);
+  --yb-shadow-hover: 10px 10px 24px rgba(163, 177, 198, 0.48), -10px -10px 24px rgba(255, 255, 255, 0.9);
+  --yb-shadow-modal: 0 24px 64px rgba(46, 45, 51, 0.28);
+  --yb-shadow-inset: inset 3px 3px 6px rgba(163, 177, 198, 0.42), inset -3px -3px 6px rgba(255, 255, 255, 0.82);
 
   /* 统一键盘焦点环 */
-  --yb-focus-ring: 0 0 0 3px rgba(33, 116, 253, 0.22);
+  --yb-focus-ring: 0 0 0 3px rgba(196, 0, 0, 0.22);
 
   /* 统一过渡节奏：交互反馈用更快的 ease-out，跨状态切换用更柔和的曲线 */
   --yb-ease: cubic-bezier(0.16, 1, 0.3, 1);
@@ -111,13 +112,22 @@ button {
   cursor: pointer;
 }
 
+/* 拟态凹陷：文本输入/文本域/下拉统一内阴影 + 浅灰底（feature 层可覆盖背景，但凹陷阴影保留） */
+input:not([type='color']):not([type='range']):not([type='checkbox']):not([type='radio']):not([type='file']),
+textarea,
+select {
+  background: var(--yb-bg);
+  border: 1px solid var(--yb-border-soft);
+  box-shadow: var(--yb-shadow-inset);
+}
+
 /* 全局键盘焦点可见性：按钮/链接类控件用 outline 环，文本输入类控件用统一的蓝色焦点环。
  * 仅在 :focus-visible（键盘导航）时出现，鼠标点击不受影响；feature 层可用更高优先级覆盖。 */
 button:focus-visible,
 a:focus-visible,
 [role='button']:focus-visible,
 [tabindex]:focus-visible {
-  outline: 2px solid rgba(33, 116, 253, 0.55);
+  outline: 2px solid rgba(196, 0, 0, 0.55);
   outline-offset: 2px;
 }
 

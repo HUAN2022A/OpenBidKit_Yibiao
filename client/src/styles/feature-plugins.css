@@ -15,7 +15,7 @@
   overflow: hidden;
   padding: 28px;
   background:
-    radial-gradient(circle at 95% 0%, rgba(33, 116, 253, 0.1), transparent 28%),
+    radial-gradient(circle at 95% 0%, rgba(196, 0, 0, 0.1), transparent 28%),
     rgba(255, 255, 255, 0.92);
   border: 1px solid rgba(228, 233, 240, 0.88);
   border-radius: var(--yb-radius-xl);
@@ -87,8 +87,8 @@
 }
 
 .plugin-card:hover {
-  border-color: rgba(33, 116, 253, 0.22);
-  box-shadow: 0 18px 42px rgba(33, 116, 253, 0.11);
+  border-color: rgba(196, 0, 0, 0.22);
+  box-shadow: var(--yb-shadow);
   transform: translateY(-1px);
 }
 
@@ -113,8 +113,8 @@
 
 .plugin-card-icon.is-placeholder {
   font-size: 24px;
-  background: linear-gradient(150deg, rgba(33, 116, 253, 0.12), rgba(91, 84, 211, 0.08));
-  border-color: rgba(33, 116, 253, 0.12);
+  background: linear-gradient(150deg, rgba(196, 0, 0, 0.12), rgba(143, 19, 16, 0.08));
+  border-color: rgba(196, 0, 0, 0.12);
 }
 
 .plugin-card-title {
@@ -156,8 +156,8 @@
   color: var(--yb-primary);
   font-size: 12px;
   font-weight: 700;
-  background: rgba(33, 116, 253, 0.08);
-  border: 1px solid rgba(33, 116, 253, 0.12);
+  background: rgba(196, 0, 0, 0.08);
+  border: 1px solid rgba(196, 0, 0, 0.12);
   border-radius: var(--yb-radius-pill);
 }
 
@@ -201,8 +201,8 @@
 
 .plugin-status-pill.is-installed {
   color: #36547c;
-  background: rgba(33, 116, 253, 0.07);
-  border-color: rgba(33, 116, 253, 0.12);
+  background: rgba(196, 0, 0, 0.07);
+  border-color: rgba(196, 0, 0, 0.12);
 }
 
 .plugin-status-pill.is-enabled {
@@ -261,7 +261,7 @@
   width: min(440px, calc(100vw - 40px));
   gap: 16px;
   padding: 24px;
-  background: #ffffff;
+  background: var(--yb-surface);
   border: 1px solid rgba(228, 233, 240, 0.9);
   border-radius: var(--yb-radius-xl);
   box-shadow: var(--yb-shadow-modal);

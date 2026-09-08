@@ -8,9 +8,46 @@ const githubStarNotice = {
 
 export const appMenuItems: AppMenuItem[] = [
   {
-    id: 'bid-generation',
-    label: '标书生成',
-    description: '技术方案、可研报告与商务标编制',
+    id: 'home',
+    label: '工作台',
+    description: '投标项目总览与快速开始',
+  },
+  {
+    id: 'prepare',
+    label: '准备',
+    description: '机会、素材与知识资产',
+    children: [
+      {
+        id: 'bid-opportunity',
+        label: '投标机会',
+        description: '机会发现与线索跟踪',
+        icon: 'radar',
+        notice: githubStarNotice,
+      },
+      {
+        id: 'document-knowledge-base',
+        label: '文档知识库',
+        description: '管理文档资料、案例素材和可复用知识条目',
+        icon: 'document',
+      },
+      {
+        id: 'image-knowledge-base',
+        label: '图片知识库',
+        description: '管理图片素材、图示和视觉参考资料',
+        icon: 'file',
+      },
+      {
+        id: 'resources',
+        label: '资源下载',
+        description: '投标相关资料、工具下载',
+        icon: 'file',
+      },
+    ],
+  },
+  {
+    id: 'generate',
+    label: '生成',
+    description: '技术方案、商务标与可研',
     children: [
       {
         id: 'technical-plan',
@@ -41,47 +78,9 @@ export const appMenuItems: AppMenuItem[] = [
     ],
   },
   {
-    id: 'template-settings',
-    label: '模版设置',
-    description: '标书导出模板与排版配置',
-    children: [
-      {
-        id: 'my-templates',
-        label: '我的模板',
-        description: '管理已保存的标书导出模板',
-        icon: 'document',
-      },
-      {
-        id: 'new-template',
-        label: '新建模板',
-        description: '配置 Word 文档排版与编号格式',
-        icon: 'export',
-      },
-    ],
-  },
-  {
-    id: 'knowledge-base',
-    label: '知识库',
-    description: '素材、模板和案例资产',
-    children: [
-      {
-        id: 'document-knowledge-base',
-        label: '文档知识库',
-        description: '管理文档资料、案例素材和可复用知识条目',
-        icon: 'document',
-      },
-      {
-        id: 'image-knowledge-base',
-        label: '图片知识库',
-        description: '管理图片素材、图示和视觉参考资料',
-        icon: 'file',
-      },
-    ],
-  },
-  {
-    id: 'bid-check',
-    label: '标书检查',
-    description: '查重、废标项与合规检查',
+    id: 'review',
+    label: '审核',
+    description: '查重、废标与AI评标',
     children: [
       {
         id: 'duplicate-check',
@@ -105,20 +104,23 @@ export const appMenuItems: AppMenuItem[] = [
     ],
   },
   {
-    id: 'bid-opportunity',
-    label: '投标机会',
-    description: '机会发现与线索跟踪',
-    notice: githubStarNotice,
-  },
-  {
-    id: 'plugin-manager',
-    label: '插件管理',
-    description: '安装和管理插件，扩展软件功能',
-  },
-  {
-    id: 'resources',
-    label: '资源下载',
-    description: '投标相关资料、工具下载',
+    id: 'export',
+    label: '导出',
+    description: '模板与格式配置',
+    children: [
+      {
+        id: 'my-templates',
+        label: '我的模板',
+        description: '管理已保存的标书导出模板',
+        icon: 'document',
+      },
+      {
+        id: 'new-template',
+        label: '新建模板',
+        description: '配置 Word 文档排版与编号格式',
+        icon: 'export',
+      },
+    ],
   },
 ];
 

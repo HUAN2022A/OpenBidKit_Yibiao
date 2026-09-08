@@ -19,6 +19,7 @@ import PluginsPage from '../features/plugins/pages/PluginsPage';
 import SettingsPage from '../features/settings/pages/SettingsPage';
 import TechnicalPlanHome from '../features/technical-plan/pages/TechnicalPlanHome';
 import FeasibilityReportHome from '../features/feasibility-report/pages/FeasibilityReportHome';
+import WorkbenchHome from '../features/workbench/pages/WorkbenchHome';
 import SecondaryMenuPage from '../shared/ui/SecondaryMenuPage';
 
 interface AppRouterProps {
@@ -48,6 +49,8 @@ function AppRouter({ activeSection, developerMode, onDeveloperModeChange, onSect
   }
 
   switch (activeSection) {
+    case 'home':
+      return <WorkbenchHome onSectionChange={onSectionChange} />;
     case 'technical-plan':
       return <TechnicalPlanHome workflowKind="technical-plan" registerLeaveGuard={registerLeaveGuard} onSectionChange={onSectionChange} />;
     case 'existing-plan-expansion':

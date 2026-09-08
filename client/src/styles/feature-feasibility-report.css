@@ -51,7 +51,7 @@
   min-width: 0;
   padding: 9px 11px;
   color: var(--yb-text);
-  background: #ffffff;
+  background: var(--yb-surface);
   border: 1px solid var(--yb-border);
   border-radius: var(--yb-radius-md);
 }

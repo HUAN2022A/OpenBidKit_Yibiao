@@ -985,6 +985,7 @@ function TechnicalPlanHome({ workflowKind, registerLeaveGuard, onSectionChange }
         project_name: state.outlineData.project_name,
         outline: state.outlineData.outline,
         export_format: latestExportFormat,
+        global_facts: state.globalFacts,
       });
       if (result?.canceled) {
         setExportProgress(initialExportProgress);

@@ -7,8 +7,8 @@
   padding: 32px;
   color: var(--yb-text);
   background:
-    radial-gradient(circle at 72% 18%, rgba(33, 116, 253, 0.16), transparent 28%),
-    radial-gradient(circle at 24% 22%, rgba(91, 84, 211, 0.12), transparent 30%),
+    radial-gradient(circle at 72% 18%, rgba(196, 0, 0, 0.16), transparent 28%),
+    radial-gradient(circle at 24% 22%, rgba(143, 19, 16, 0.12), transparent 30%),
     linear-gradient(180deg, #ffffff 0%, var(--yb-bg) 52%, #f1f6ff 100%);
 }
 
@@ -36,7 +36,7 @@
   font-weight: 800;
   background: linear-gradient(135deg, var(--yb-primary), var(--yb-violet));
   border-radius: var(--yb-radius-xl);
-  box-shadow: 0 16px 34px rgba(33, 116, 253, 0.22);
+  box-shadow: var(--yb-shadow-modal);
 }
 
 .workspace-database-mark span {
@@ -50,7 +50,7 @@
 
 .workspace-database-mark.is-error {
   background: linear-gradient(135deg, var(--yb-danger), #c0392b);
-  box-shadow: 0 16px 34px rgba(231, 76, 60, 0.22);
+  box-shadow: var(--yb-shadow-modal);
 }
 
 .workspace-database-copy {
@@ -161,7 +161,7 @@
   max-height: min(720px, calc(100vh - 40px));
   padding: 24px;
   overflow: auto;
-  background: #ffffff;
+  background: var(--yb-surface);
   border: 1px solid rgba(228, 233, 240, 0.9);
   border-radius: var(--yb-radius-xl);
   box-shadow: var(--yb-shadow-modal);
@@ -187,8 +187,8 @@
   align-items: center;
   gap: 10px;
   padding: 12px;
-  background: rgba(33, 116, 253, 0.06);
-  border: 1px solid rgba(33, 116, 253, 0.12);
+  background: rgba(196, 0, 0, 0.06);
+  border: 1px solid rgba(196, 0, 0, 0.12);
   border-radius: var(--yb-radius-md);
 }
 
@@ -288,7 +288,7 @@
   gap: 18px;
   padding: 24px;
   overflow: hidden;
-  background: #ffffff;
+  background: var(--yb-surface);
   border: 1px solid rgba(228, 233, 240, 0.9);
   border-radius: var(--yb-radius-xl);
   box-shadow: var(--yb-shadow-modal);
@@ -316,7 +316,7 @@
   gap: 14px;
   padding: 14px;
   overflow: hidden;
-  background: #ffffff;
+  background: var(--yb-surface);
   border: 1px solid rgba(228, 233, 240, 0.9);
   border-radius: 22px;
   box-shadow: 0 32px 86px rgba(9, 14, 28, 0.34);
@@ -374,7 +374,7 @@
   gap: 18px;
   padding: 24px;
   overflow: hidden;
-  background: #ffffff;
+  background: var(--yb-surface);
   border: 1px solid rgba(228, 233, 240, 0.92);
   border-radius: var(--yb-radius-xl);
   box-shadow: var(--yb-shadow-modal);
@@ -424,7 +424,7 @@
 
 .document-parse-notice-close:hover {
   color: var(--yb-text);
-  background: rgba(33, 116, 253, 0.08);
+  background: rgba(196, 0, 0, 0.08);
 }
 
 .document-parse-notice-body {
@@ -466,7 +466,7 @@
   gap: 14px;
   padding: 22px;
   overflow: hidden;
-  background: #ffffff;
+  background: var(--yb-surface);
   border: 1px solid rgba(228, 233, 240, 0.92);
   border-radius: var(--yb-radius-xl);
   box-shadow: 0 32px 86px rgba(23, 32, 51, 0.18);
@@ -555,7 +555,7 @@
   width: 100%;
   height: 100%;
   margin: 0;
-  background: #ffffff;
+  background: var(--yb-surface);
   border: 0;
 }
 
@@ -658,7 +658,7 @@
 .remote-notice-content blockquote {
   padding: 10px 14px;
   color: var(--yb-text-soft);
-  background: rgba(33, 116, 253, 0.06);
+  background: rgba(196, 0, 0, 0.06);
   border-left: 4px solid var(--yb-primary);
   border-radius: 0 12px 12px 0;
 }
@@ -680,7 +680,7 @@
 .remote-notice-content code {
   padding: 2px 6px;
   color: var(--yb-primary-deep);
-  background: rgba(33, 116, 253, 0.08);
+  background: rgba(196, 0, 0, 0.08);
   border-radius: var(--yb-radius-sm);
 }
 

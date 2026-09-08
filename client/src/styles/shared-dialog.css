@@ -84,7 +84,7 @@
   gap: 16px;
   padding: 22px;
   overflow: hidden;
-  background: #ffffff;
+  background: var(--yb-surface);
   border: 1px solid rgba(228, 233, 240, 0.9);
   border-radius: var(--yb-radius-xl);
   box-shadow: var(--yb-shadow-modal);
@@ -160,7 +160,7 @@
   gap: 16px;
   padding: 24px;
   overflow: hidden;
-  background: #ffffff;
+  background: var(--yb-surface);
   border: 1px solid rgba(228, 233, 240, 0.9);
   border-radius: var(--yb-radius-xl);
   box-shadow: var(--yb-shadow-modal);
@@ -204,8 +204,8 @@
 }
 
 .content-regenerate-card textarea:focus {
-  background: #ffffff;
-  border-color: rgba(33, 116, 253, 0.5);
+  background: var(--yb-surface);
+  border-color: rgba(196, 0, 0, 0.5);
   box-shadow: var(--yb-focus-ring);
 }
 
@@ -236,8 +236,8 @@
 
 .yb-switch[data-state='checked'] {
   background: linear-gradient(135deg, var(--yb-primary), var(--yb-violet));
-  border-color: rgba(33, 116, 253, 0.35);
-  box-shadow: 0 6px 16px rgba(33, 116, 253, 0.18);
+  border-color: rgba(196, 0, 0, 0.35);
+  box-shadow: 0 6px 16px rgba(196, 0, 0, 0.18);
 }
 
 .yb-switch[data-disabled] {
@@ -250,7 +250,7 @@
   width: 18px;
   height: 18px;
   transform: translateX(3px);
-  background: #ffffff;
+  background: var(--yb-surface);
   border-radius: var(--yb-radius-pill);
   box-shadow: 0 2px 8px rgba(23, 32, 51, 0.12);
   transition: transform var(--yb-duration) ease;
@@ -315,8 +315,8 @@
   font-size: 14px;
   font-weight: 400;
   line-height: 1.65;
-  background: rgba(33, 116, 253, 0.055);
-  border-left: 3px solid rgba(33, 116, 253, 0.62);
+  background: rgba(196, 0, 0, 0.055);
+  border-left: 3px solid rgba(196, 0, 0, 0.62);
   border-radius: 0 12px 12px 0;
   text-wrap: pretty;
 }
@@ -366,14 +366,14 @@
 }
 
 .agent-question-option:hover {
-  background: #ffffff;
-  border-color: rgba(33, 116, 253, 0.24);
+  background: var(--yb-surface);
+  border-color: rgba(196, 0, 0, 0.24);
 }
 
 .agent-question-option.is-selected {
-  background: rgba(33, 116, 253, 0.055);
-  border-color: rgba(33, 116, 253, 0.38);
-  box-shadow: 0 8px 22px rgba(33, 116, 253, 0.08);
+  background: rgba(196, 0, 0, 0.055);
+  border-color: rgba(196, 0, 0, 0.38);
+  box-shadow: var(--yb-shadow-sm);
 }
 
 .agent-question-option > input {
@@ -389,7 +389,7 @@
   height: 18px;
   margin-top: 1px;
   place-items: center;
-  background: #ffffff;
+  background: var(--yb-surface);
   border: 1.5px solid #c8d2e1;
   border-radius: var(--yb-radius-pill);
 }
@@ -399,7 +399,7 @@
 }
 
 .agent-question-option:has(input:focus-visible) {
-  outline: 3px solid rgba(33, 116, 253, 0.16);
+  outline: 3px solid rgba(196, 0, 0, 0.16);
   outline-offset: 2px;
 }
 
@@ -425,7 +425,7 @@
   font-size: 11px;
   font-style: normal;
   font-weight: 800;
-  background: rgba(33, 116, 253, 0.1);
+  background: rgba(196, 0, 0, 0.1);
   border-radius: var(--yb-radius-pill);
 }
 
@@ -452,9 +452,9 @@
 }
 
 .agent-question-custom-answer:focus {
-  background: #ffffff;
-  border-color: rgba(33, 116, 253, 0.38);
-  box-shadow: 0 0 0 4px rgba(33, 116, 253, 0.08);
+  background: var(--yb-surface);
+  border-color: rgba(196, 0, 0, 0.38);
+  box-shadow: 0 0 0 4px rgba(196, 0, 0, 0.08);
 }
 
 .agent-question-actions {

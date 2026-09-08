@@ -3,6 +3,11 @@ import { renderTable } from '../render.js';
 import { state } from '../state.js';
 
 const pageLabels = {
+  home: '工作台',
+  prepare: '准备',
+  generate: '生成',
+  review: '审核',
+  export: '导出',
   'bid-generation': '标书生成',
   'technical-plan': '技术方案',
   'existing-plan-expansion': '标书生成 - 已有方案扩写',
