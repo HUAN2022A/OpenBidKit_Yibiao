@@ -14,6 +14,7 @@ import DuplicateCheckPage from '../features/duplicate-check/pages/DuplicateCheck
 import KnowledgeBasePage from '../features/knowledge-base/pages/KnowledgeBasePage';
 import ImageKnowledgeBasePage from '../features/image-knowledge-base/pages/ImageKnowledgeBasePage';
 import RejectionCheckPage from '../features/rejection-check/pages/RejectionCheckPage';
+import EvaluationPage from '../features/ai-evaluation/pages/EvaluationPage';
 import ResourcesPage from '../features/resources/pages/ResourcesPage';
 import PluginsPage from '../features/plugins/pages/PluginsPage';
 import SettingsPage from '../features/settings/pages/SettingsPage';
@@ -69,6 +70,8 @@ function AppRouter({ activeSection, developerMode, onDeveloperModeChange, onSect
       return <DuplicateCheckPage />;
     case 'rejection-check':
       return <RejectionCheckPage />;
+    case 'ai-evaluation':
+      return <EvaluationPage />;
     case 'my-templates':
       return editingTemplateId
         ? <ExportFormatPage mode="edit" templateId={editingTemplateId} onBack={() => setEditingTemplateId(null)} />

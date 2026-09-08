@@ -8,6 +8,7 @@ const EXCEL_TEXT_TRUNCATION_SUFFIX = '……（内容过长，已截断）';
 
 const rejectionSheetNames = ['检查概览', '废标项', '错别字', '逻辑问题'];
 const duplicateSheetNames = ['查重概览', '元数据', '目录重复', '文件相似度', '重复句子', '重复图片'];
+const evaluationSheetNames = ['评标概览', '评分明细'];
 
 function normalizeCellText(value) {
   if (value === null || value === undefined) return '';
@@ -380,6 +381,61 @@ function buildDuplicateWorkbook(state, request, options = {}) {
   return workbook;
 }
 
+function getEvaluationResultDescriptor(result, expectedSignature) {
+  const source = result && typeof result === 'object' ? result : { status: 'idle', items: [] };
+  const valid = !expectedSignature || source.inputSignature === expectedSignature;
+  return {
+    ...source,
+    items: valid && Array.isArray(source.items) ? source.items : [],
+    valid,
+  };
+}
+
+function selectCurrentEvaluationResult(state, request) {
+  const workspace = state || {};
+  const result = getEvaluationResultDescriptor(workspace.evaluationResult, request?.inputSignature);
+  return {
+    result,
+    exportable: result.valid && (result.status === 'success' || result.items.length > 0),
+  };
+}
+
+function buildEvaluationWorkbook(state, request, options = {}) {
+  const selected = selectCurrentEvaluationResult(state, request);
+  const exportedAt = options.exportedAt || new Date();
+  const workbook = XLSX.utils.book_new();
+  workbook.Props = { Title: 'AI评标结果', CreatedDate: new Date(exportedAt) };
+
+  const result = selected.result;
+  const scoreRateText = result.valid ? `${(Number(result.scoreRate || 0) * 100).toFixed(2)}%` : '';
+  const overviewRows = [
+    ['导出时间', formatDisplayTime(exportedAt)],
+    [],
+    ['统计项', '数值'],
+    ['总分', result.valid ? Number(result.totalScore || 0) : ''],
+    ['满分', result.valid ? Number(result.totalMaxScore || 0) : ''],
+    ['得分率', scoreRateText],
+    ['总体评语', result.valid ? result.overallComment : ''],
+  ];
+  appendWorksheet(workbook, evaluationSheetNames[0], overviewRows, [16, 60]);
+
+  const detailRows = [
+    ['序号', '评分项', '满分', '得分', '评分标准', '标书证据', '扣分理由', '改进建议'],
+    ...result.items.map((item, index) => [
+      index + 1,
+      item.name,
+      Number(item.maxScore || 0),
+      Number(item.score || 0),
+      item.criteria,
+      item.evidence,
+      item.deductionReason,
+      item.suggestion,
+    ]),
+  ];
+  appendWorksheet(workbook, evaluationSheetNames[1], detailRows, [8, 28, 12, 12, 42, 48, 42, 42], 0);
+  return workbook;
+}
+
 function workbookToBuffer(workbook) {
   return XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer', compression: true });
 }
@@ -389,6 +445,7 @@ function createCheckResultExportService({
   dialog,
   rejectionCheckStore,
   duplicateCheckStore,
+  evaluationStore,
   fileSystem = fs,
   now = () => new Date(),
 }) {
@@ -441,7 +498,24 @@ function createCheckResultExportService({
     }
   }
 
-  return { exportRejectionExcel, exportDuplicateExcel };
+  async function exportEvaluationExcel(request) {
+    try {
+      const state = evaluationStore.loadEvaluation();
+      const selected = selectCurrentEvaluationResult(state, request);
+      if (!selected.exportable) return { success: false, message: '没有可导出的当前评标结果' };
+      const exportedAt = now();
+      const workbook = buildEvaluationWorkbook(state, request, { exportedAt });
+      return await saveWorkbook({
+        title: '导出AI评标结果',
+        defaultFileName: `AI评标结果_${formatFileTimestamp(exportedAt)}.xlsx`,
+        workbook,
+      });
+    } catch (error) {
+      return { success: false, message: error instanceof Error ? error.message : 'AI评标结果导出失败' };
+    }
+  }
+
+  return { exportRejectionExcel, exportDuplicateExcel, exportEvaluationExcel };
 }
 
 module.exports = {
@@ -449,8 +523,10 @@ module.exports = {
   __test__: {
     buildRejectionWorkbook,
     buildDuplicateWorkbook,
+    buildEvaluationWorkbook,
     selectCurrentRejectionResults,
     selectCurrentDuplicateResults,
+    selectCurrentEvaluationResult,
     normalizeCellText,
     sanitizeFileName,
     ensureXlsxPath,

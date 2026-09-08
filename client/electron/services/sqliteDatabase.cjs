@@ -3,7 +3,7 @@ const path = require('node:path');
 const Database = require('better-sqlite3');
 const { getWorkspaceDatabasePath } = require('../utils/paths.cjs');
 
-const schemaVersion = 25;
+const schemaVersion = 26;
 
 function createInitialSchema(db) {
   db.exec(`
@@ -702,6 +702,76 @@ function createRejectionCheckSchema(db) {
   `);
 }
 
+function createEvaluationSchema(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS evaluation_meta (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      active_tab TEXT NOT NULL DEFAULT 'documents',
+      run_options_json TEXT,
+      scoring_items_json TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS evaluation_documents (
+      document_id TEXT PRIMARY KEY,
+      role TEXT NOT NULL,
+      source TEXT NOT NULL,
+      file_name TEXT NOT NULL,
+      markdown_path TEXT NOT NULL,
+      content_hash TEXT NOT NULL,
+      content_chars INTEGER NOT NULL DEFAULT 0,
+      imported_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_evaluation_documents_role
+    ON evaluation_documents(role);
+
+    CREATE TABLE IF NOT EXISTS evaluation_tasks (
+      type TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL,
+      status TEXT NOT NULL,
+      progress INTEGER NOT NULL DEFAULT 0,
+      stats_json TEXT,
+      error TEXT,
+      started_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS evaluation_results (
+      result_type TEXT PRIMARY KEY,
+      status TEXT NOT NULL DEFAULT 'idle',
+      input_signature TEXT,
+      total_score REAL,
+      total_max_score REAL,
+      overall_comment TEXT,
+      active_item_id TEXT,
+      progress_message TEXT,
+      error TEXT,
+      updated_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS evaluation_score_items (
+      item_id TEXT PRIMARY KEY,
+      result_type TEXT NOT NULL,
+      name TEXT NOT NULL,
+      max_score REAL NOT NULL DEFAULT 0,
+      score REAL NOT NULL DEFAULT 0,
+      criteria TEXT NOT NULL DEFAULT '',
+      evidence TEXT NOT NULL DEFAULT '',
+      deduction_reason TEXT NOT NULL DEFAULT '',
+      suggestion TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_evaluation_score_items_order
+    ON evaluation_score_items(result_type, sort_order);
+  `);
+}
+
 function addColumnIfMissing(db, tableName, columnName, columnType) {
   if (!getExistingTables(db).has(tableName)) return;
   const columns = getExistingColumns(db, tableName);
@@ -1130,6 +1200,17 @@ const schemaHealthTableGroups = [
     tables: ['feasibility_report_meta', 'feasibility_report_tasks', 'feasibility_report_outline_nodes'],
     repair: createFeasibilityReportSchema,
   },
+  {
+    version: 26,
+    tables: [
+      'evaluation_meta',
+      'evaluation_documents',
+      'evaluation_tasks',
+      'evaluation_results',
+      'evaluation_score_items',
+    ],
+    repair: createEvaluationSchema,
+  },
 ];
 
 function removeKnowledgeMigrationMeta(db) {
@@ -1480,6 +1561,11 @@ const migrations = [
     version: 25,
     description: '配图计划持久化复用来源标注',
     up: addIllustrationReuseSource,
+  },
+  {
+    version: 26,
+    description: 'AI评标',
+    up: createEvaluationSchema,
   },
 ];
 

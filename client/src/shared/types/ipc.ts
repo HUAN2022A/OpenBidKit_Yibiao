@@ -21,7 +21,7 @@ export interface TaskEventTask {
   stats?: unknown;
 }
 
-export interface TaskEvent<TState = unknown, TRejectionCheckState = unknown, TDuplicateCheckState = unknown> {
+export interface TaskEvent<TState = unknown, TRejectionCheckState = unknown, TDuplicateCheckState = unknown, TEvaluationState = unknown> {
   task: TaskEventTask;
   technicalPlan?: TState;
   technicalPlanPatch?: Partial<TechnicalPlanState>;
@@ -35,6 +35,8 @@ export interface TaskEvent<TState = unknown, TRejectionCheckState = unknown, TDu
   duplicateCheck?: TDuplicateCheckState;
   duplicateCheckPatch?: DuplicateCheckWorkspacePatch;
   feasibilityReportPatch?: Partial<FeasibilityReportState>;
+  evaluation?: TEvaluationState;
+  evaluationPatch?: EvaluationWorkspacePatch;
 }
 
 export interface WordExportProgressEvent {
@@ -59,6 +61,74 @@ export interface CheckResultExportResult {
   path?: string;
   message?: string;
 }
+
+export interface EvaluationTechnicalPlanDocument {
+  id: string;
+  role: 'technical-plan';
+  fileName: string;
+  content: string;
+  source: 'technical-plan';
+  importedAt?: string;
+}
+
+export interface EvaluationScoringItemsState {
+  status: 'idle' | 'success' | 'error';
+  content: string;
+  source?: string;
+  updatedAt?: string;
+  error?: string;
+}
+
+export interface EvaluationRunOptions {
+  judgeCount: number;
+}
+
+export interface EvaluationScoreItem {
+  id: string;
+  name: string;
+  maxScore: number;
+  score: number;
+  criteria: string;
+  evidence: string;
+  deductionReason: string;
+  suggestion: string;
+}
+
+export interface EvaluationResultState {
+  status: 'idle' | 'running' | 'success' | 'error';
+  inputSignature?: string;
+  totalScore: number;
+  totalMaxScore: number;
+  scoreRate: number;
+  overallComment: string;
+  items: EvaluationScoreItem[];
+  activeItemId?: string;
+  progressMessage?: string;
+  error?: string;
+  updatedAt?: string;
+}
+
+export interface EvaluationBackgroundTaskState {
+  task_id: string;
+  type: 'evaluation-run';
+  status: string;
+  progress: number;
+  logs: string[];
+  started_at?: string;
+  updated_at?: string;
+  error?: string;
+}
+
+export interface EvaluationWorkspaceState {
+  technicalPlanDocument: EvaluationTechnicalPlanDocument | null;
+  scoringItems: EvaluationScoringItemsState;
+  runOptions: EvaluationRunOptions;
+  evaluationResult: EvaluationResultState;
+  evaluationTask?: EvaluationBackgroundTaskState;
+  activeTab: 'documents' | 'results';
+}
+
+export type EvaluationWorkspacePatch = Partial<EvaluationWorkspaceState>;
 
 export type TemplateWordConfidenceSource = 'rule' | 'ai' | 'default';
 
@@ -763,6 +833,14 @@ export interface YibiaoBridge {
     exportExcel: (request: { rejectionInputSignature: string; bidSignature: string }) => Promise<CheckResultExportResult>;
     clear: () => Promise<{ success: boolean; message?: string }>;
   };
+  evaluation: {
+    loadState: () => Promise<EvaluationWorkspaceState>;
+    importFromTechnicalPlan: () => Promise<{ success: boolean; message?: string }>;
+    saveUiState: (payload: Partial<EvaluationWorkspaceState>) => Promise<void>;
+    updateState: (partial: EvaluationWorkspacePatch) => Promise<void>;
+    exportExcel: (request: { inputSignature: string }) => Promise<CheckResultExportResult>;
+    clear: () => Promise<{ success: boolean; message?: string }>;
+  };
   templates: {
     list: () => Promise<ExportTemplateRecord[]>;
     get: (templateId: string) => Promise<ExportTemplateRecord | null>;
@@ -781,6 +859,7 @@ export interface YibiaoBridge {
     pauseContentGeneration: () => Promise<unknown>;
     startRejectionItemsExtraction: (payload: unknown) => Promise<unknown>;
     startRejectionCheck: (payload: unknown) => Promise<unknown>;
+    startEvaluation: (payload: unknown) => Promise<unknown>;
     startDuplicateAnalysis: (payload: unknown) => Promise<unknown>;
     startFeasibilityAnalysis: (payload?: unknown) => Promise<unknown>;
     startFeasibilityOutline: (payload?: unknown) => Promise<unknown>;
@@ -789,7 +868,7 @@ export interface YibiaoBridge {
     pauseFeasibilityContent: () => Promise<unknown>;
     startFeasibilityHumanWriting: (payload?: unknown) => Promise<unknown>;
     getActiveTasks: () => Promise<TaskEventTask[]>;
-    onTaskEvent: <TState = unknown, TRejectionCheckState = unknown, TDuplicateCheckState = unknown>(callback: (event: TaskEvent<TState, TRejectionCheckState, TDuplicateCheckState>) => void) => () => void;
+    onTaskEvent: <TState = unknown, TRejectionCheckState = unknown, TDuplicateCheckState = unknown, TEvaluationState = unknown>(callback: (event: TaskEvent<TState, TRejectionCheckState, TDuplicateCheckState, TEvaluationState>) => void) => () => void;
   };
   export: {
     exportWord: (payload: unknown) => Promise<WordExportResult>;

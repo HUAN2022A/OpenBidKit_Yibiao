@@ -4,7 +4,7 @@
 -- 1. 本文件用于开源开发者阅读、评审和排查问题，展示 workspace/yibiao.sqlite 的目标完整表结构。
 -- 2. 用户运行客户端时不需要手动执行本文件。
 -- 3. 客户端运行时建表和升级以 Electron Main 侧 migration 代码为准。
--- 4. 当前运行代码已落地 technical_plan_* v1、duplicate_check_* / rejection_check_* v2、knowledge_* v4、technical_plan_global_fact_groups v4、标段兼容 v5/v6、标段选择 v7、旧待选择标段兼容字段 v8、工作流类型和原方案文件状态 v9、招标解析项选择配置 v10、知识库排序 v11、废标项检查多投标文件 v12、已有方案目录配置 v13、多标段优化状态 v14、导出模板库 v15、多招标文件 v16、全文图片编排 v17、目录字数控制 v18、全局事实补全模式 v22、可行性研究报告 v23、知识库图片条目 v24、配图复用标注 v25 目标结构。
+-- 4. 当前运行代码已落地 technical_plan_* v1、duplicate_check_* / rejection_check_* v2、knowledge_* v4、technical_plan_global_fact_groups v4、标段兼容 v5/v6、标段选择 v7、旧待选择标段兼容字段 v8、工作流类型和原方案文件状态 v9、招标解析项选择配置 v10、知识库排序 v11、废标项检查多投标文件 v12、已有方案目录配置 v13、多标段优化状态 v14、导出模板库 v15、多招标文件 v16、全文图片编排 v17、目录字数控制 v18、全局事实补全模式 v22、可行性研究报告 v23、知识库图片条目 v24、配图复用标注 v25、AI评标 v26 目标结构。
 -- 5. 每次表结构调整后，需要同步更新本文件和 runtime migration 版本。
 -- 6. 本文件不保存历史版本，每次更新都写入最新目标完整结构。
 
@@ -14,7 +14,7 @@ PRAGMA busy_timeout = 5000;
 
 -- 目标完整结构版本。
 -- 运行时代码应通过 PRAGMA user_version 判断是否需要自动升级。
-PRAGMA user_version = 25;
+PRAGMA user_version = 26;
 
 -- ============================================================================
 -- 技术方案 technical_plan_*（v1 已落地）
@@ -908,3 +908,82 @@ ON feasibility_report_outline_nodes(parent_node_id, sort_order);
 
 CREATE INDEX IF NOT EXISTS idx_feasibility_report_outline_level
 ON feasibility_report_outline_nodes(level);
+
+-- ============================================================================
+-- AI 评标 evaluation_*（v26 已落地）
+-- ============================================================================
+
+-- AI 评标单例元数据。只保留一行 id = 1。
+-- active_tab 保存页面当前标签（documents / results）；run_options_json 保存 runOptions（当前 judgeCount 恒为 1）。
+-- scoring_items_json 保存从技术方案导入的评分标准（{ status, content, source, updatedAt, error }）。
+CREATE TABLE IF NOT EXISTS evaluation_meta (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  active_tab TEXT NOT NULL DEFAULT 'documents',
+  run_options_json TEXT,
+  scoring_items_json TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+-- AI 评标标书正文文档元数据（单份，role = technical-plan）。
+-- 正文 Markdown 保存到 userData/workspace/evaluation/documents/<document_id>.md，不进入 SQLite。
+CREATE TABLE IF NOT EXISTS evaluation_documents (
+  document_id TEXT PRIMARY KEY,
+  role TEXT NOT NULL,
+  source TEXT NOT NULL,
+  file_name TEXT NOT NULL,
+  markdown_path TEXT NOT NULL,
+  content_hash TEXT NOT NULL,
+  content_chars INTEGER NOT NULL DEFAULT 0,
+  imported_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_evaluation_documents_role
+ON evaluation_documents(role);
+
+-- AI 评标后台任务状态。type = evaluation-run。
+CREATE TABLE IF NOT EXISTS evaluation_tasks (
+  type TEXT PRIMARY KEY,
+  task_id TEXT NOT NULL,
+  status TEXT NOT NULL,
+  progress INTEGER NOT NULL DEFAULT 0,
+  stats_json TEXT,
+  error TEXT,
+  started_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+-- AI 评标结果状态。result_type = evaluation。
+-- total_score / total_max_score 由 Main 侧确定性求和，score_rate 由运行时代码按 total_score / total_max_score 计算，不落库。
+CREATE TABLE IF NOT EXISTS evaluation_results (
+  result_type TEXT PRIMARY KEY,
+  status TEXT NOT NULL DEFAULT 'idle',
+  input_signature TEXT,
+  total_score REAL,
+  total_max_score REAL,
+  overall_comment TEXT,
+  active_item_id TEXT,
+  progress_message TEXT,
+  error TEXT,
+  updated_at TEXT
+);
+
+-- AI 评标逐项评分明细。
+CREATE TABLE IF NOT EXISTS evaluation_score_items (
+  item_id TEXT PRIMARY KEY,
+  result_type TEXT NOT NULL,
+  name TEXT NOT NULL,
+  max_score REAL NOT NULL DEFAULT 0,
+  score REAL NOT NULL DEFAULT 0,
+  criteria TEXT NOT NULL DEFAULT '',
+  evidence TEXT NOT NULL DEFAULT '',
+  deduction_reason TEXT NOT NULL DEFAULT '',
+  suggestion TEXT NOT NULL DEFAULT '',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_evaluation_score_items_order
+ON evaluation_score_items(result_type, sort_order);

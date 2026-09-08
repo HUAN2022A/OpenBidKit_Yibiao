@@ -6,6 +6,7 @@ const { registerConfigIpc } = require('./configIpc.cjs');
 const { registerDeveloperIpc } = require('./developerIpc.cjs');
 const { registerDonationIpc } = require('./donationIpc.cjs');
 const { registerDuplicateCheckIpc } = require('./duplicateCheckIpc.cjs');
+const { registerEvaluationIpc } = require('./evaluationIpc.cjs');
 const { registerExportIpc } = require('./exportIpc.cjs');
 const { registerFileIpc } = require('./fileIpc.cjs');
 const { registerKnowledgeBaseIpc } = require('./knowledgeBaseIpc.cjs');
@@ -33,6 +34,7 @@ const { createKnowledgeBaseService } = require('../services/knowledgeBaseService
 const { createKnowledgeBaseStore } = require('../services/knowledgeBaseStore.cjs');
 const { createLicenseService } = require('../services/licenseService.cjs');
 const { createRejectionCheckStore } = require('../services/rejectionCheckStore.cjs');
+const { createEvaluationStore } = require('../services/evaluationStore.cjs');
 const { createSqliteDatabase } = require('../services/sqliteDatabase.cjs');
 const { createSystemFontService } = require('../services/systemFontService.cjs');
 const { clearOrphanedGeneratedImages, clearStalePiTaskArchives, runHistoricalStorageCleanup } = require('../services/storageCleanupService.cjs');
@@ -160,6 +162,13 @@ const workspaceDatabaseChannels = [
   'rejection-check:update-state',
   'rejection-check:export-excel',
   'rejection-check:clear',
+  'evaluation:load-state',
+  'evaluation:import-from-technical-plan',
+  'evaluation:save-ui-state',
+  'evaluation:update-state',
+  'evaluation:export-excel',
+  'evaluation:clear',
+  'tasks:start-evaluation-run',
   'knowledge-base:list',
   'knowledge-base:search',
   'knowledge-base:list-image-items',
@@ -267,6 +276,7 @@ function registerWorkspaceDatabaseServices({ app, configStore, aiService, agentS
   const feasibilityReportStore = createFeasibilityReportStore({ app, db: sqliteDatabase.db, fileService, taskLogStore, agentService });
   const duplicateCheckStore = createDuplicateCheckStore({ app, db: sqliteDatabase.db, taskLogStore });
   const rejectionCheckStore = createRejectionCheckStore({ app, db: sqliteDatabase.db, fileService, technicalPlanStore, taskLogStore });
+  const evaluationStore = createEvaluationStore({ app, db: sqliteDatabase.db, technicalPlanStore, taskLogStore });
   const templateStore = createTemplateStore({ db: sqliteDatabase.db });
   const duplicateCheckService = createDuplicateCheckService({ app, configStore, workspaceStore: duplicateCheckStore });
   const checkResultExportService = createCheckResultExportService({
@@ -274,8 +284,9 @@ function registerWorkspaceDatabaseServices({ app, configStore, aiService, agentS
     dialog,
     rejectionCheckStore,
     duplicateCheckStore,
+    evaluationStore,
   });
-  const taskService = createTaskService({ aiService, agentService, autoConfirmationService, technicalPlanStore, rejectionCheckStore, duplicateCheckStore, feasibilityReportStore, knowledgeBaseService, duplicateCheckService, openXmlHelperService });
+  const taskService = createTaskService({ aiService, agentService, autoConfirmationService, technicalPlanStore, rejectionCheckStore, duplicateCheckStore, feasibilityReportStore, knowledgeBaseService, duplicateCheckService, openXmlHelperService, evaluationStore });
   const agentWorkspaceService = createAgentWorkspaceService({ agentService, taskService, technicalPlanStore, feasibilityReportStore });
   agentWorkspaceServiceRef = agentWorkspaceService;
   technicalPlanStore.setAgentWorkspaceChangeListener(() => agentWorkspaceService.emitWorkspacesChanged());
@@ -290,6 +301,7 @@ function registerWorkspaceDatabaseServices({ app, configStore, aiService, agentS
   registerFeasibilityReportIpc({ feasibilityReportStore, taskService });
   registerDuplicateCheckIpc({ duplicateCheckStore, checkResultExportService });
   registerRejectionCheckIpc({ rejectionCheckStore, taskService, checkResultExportService });
+  registerEvaluationIpc({ evaluationStore, taskService, checkResultExportService });
   registerTemplateIpc({ templateStore, aiService, configStore });
   registerTaskIpc({ taskService });
   updateStatus({ phase: 'ready', ready: true, message: '本地数据库已就绪' });

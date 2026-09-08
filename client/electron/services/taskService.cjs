@@ -13,6 +13,7 @@ const {
 const { GLOBAL_FACTS_AGENT_TASK_KEY } = require('./globalFactsAgentV2Config.cjs');
 const { FEASIBILITY_OUTLINE_AGENT_TASK_KEY } = require('./feasibilityOutlineAgentConfig.cjs');
 const { runRejectionCheckTask, runRejectionItemsExtractionTask } = require('./rejectionCheckTask.cjs');
+const { runEvaluationTask } = require('./evaluationTask.cjs');
 const { originalPlanDownstreamTaskTypes } = require('./technicalPlanStore.cjs');
 const {
   clearContent,
@@ -106,6 +107,15 @@ const taskDefinitions = {
     lockPolicy: 'group-exclusive',
     stateKey: 'rejectionCheck',
     field: 'checkTask',
+  },
+  'evaluation-run': {
+    label: 'AI评标',
+    group: 'evaluation-check',
+    groupLabel: 'AI评标',
+    step: 1,
+    lockPolicy: 'group-exclusive',
+    stateKey: 'evaluation',
+    field: 'evaluationTask',
   },
   'duplicate-analysis': {
     label: '标书查重分析',
@@ -314,7 +324,7 @@ function createTask(type, payload) {
   };
 }
 
-function createTaskService({ aiService, agentService, autoConfirmationService, technicalPlanStore, rejectionCheckStore, duplicateCheckStore, feasibilityReportStore, knowledgeBaseService, duplicateCheckService, openXmlHelperService }) {
+function createTaskService({ aiService, agentService, autoConfirmationService, technicalPlanStore, rejectionCheckStore, duplicateCheckStore, feasibilityReportStore, knowledgeBaseService, duplicateCheckService, openXmlHelperService, evaluationStore }) {
   const subscribers = new Set();
   const callbackSubscribers = new Set();
   const activeTasks = new Map();
@@ -504,6 +514,9 @@ function createTaskService({ aiService, agentService, autoConfirmationService, t
     if (definition.stateKey === 'feasibilityReport') {
       return buildFeasibilityReportSnapshot(task, state, eventPatch);
     }
+    if (definition.stateKey === 'evaluation') {
+      return { evaluationPatch: state };
+    }
     return {};
   }
 
@@ -520,6 +533,9 @@ function createTaskService({ aiService, agentService, autoConfirmationService, t
     }
     if (definition.stateKey === 'feasibilityReport') {
       return buildSnapshot(definition, feasibilityReportStore.loadFeasibilityReport(), task);
+    }
+    if (definition.stateKey === 'evaluation') {
+      return { evaluation: evaluationStore.loadEvaluation() };
     }
     return {};
   }
@@ -625,6 +641,10 @@ function createTaskService({ aiService, agentService, autoConfirmationService, t
       feasibilityReportStore.updateFeasibilityReportWithoutReload(partial);
       return;
     }
+    if (definition.stateKey === 'evaluation') {
+      evaluationStore.updateEvaluationWithoutReload(partial);
+      return;
+    }
     technicalPlanStore.updateTechnicalPlanWithoutReload(partial);
   }
 
@@ -640,6 +660,9 @@ function createTaskService({ aiService, agentService, autoConfirmationService, t
     }
     if (definition.stateKey === 'feasibilityReport') {
       return feasibilityReportStore.loadFeasibilityReport();
+    }
+    if (definition.stateKey === 'evaluation') {
+      return evaluationStore.loadEvaluation();
     }
     return technicalPlanStore.loadTechnicalPlan();
   }
@@ -872,7 +895,9 @@ function createTaskService({ aiService, agentService, autoConfirmationService, t
         ? rejectionCheckStore
         : definition.stateKey === 'feasibilityReport'
           ? feasibilityReportStore
-          : duplicateCheckStore;
+          : definition.stateKey === 'evaluation'
+            ? evaluationStore
+            : duplicateCheckStore;
     const runnerAiService = aiService?.withQueueScope ? aiService.withQueueScope(queueScopeId, taskControl.signal) : aiService;
     const agentTaskContextProvider = () => createAgentUserTaskContext(type, definition, payload, currentTask);
     const runnerAgentService = agentService.bindTaskContext(
@@ -930,6 +955,21 @@ function createTaskService({ aiService, agentService, autoConfirmationService, t
       const definition = getTaskDefinition(type);
       const control = activeTaskControls.get(type);
       if (definition.group !== 'rejection-check' || !isActiveTaskStatus(task.status) || !control?.cancel) continue;
+      if (typeFilter && !typeFilter.has(type)) continue;
+      controls.push(control);
+      control.cancel(reason);
+    }
+    await Promise.all(controls.map((control) => control.waitForSettlement()));
+  }
+
+  // 取消 AI 评标任务并等待退出，避免清空下游后旧任务继续提交 checkpoint。
+  async function cancelEvaluationTasks(reason, taskTypes) {
+    const typeFilter = Array.isArray(taskTypes) && taskTypes.length ? new Set(taskTypes) : null;
+    const controls = [];
+    for (const [type, task] of activeTasks.entries()) {
+      const definition = getTaskDefinition(type);
+      const control = activeTaskControls.get(type);
+      if (definition.group !== 'evaluation-check' || !isActiveTaskStatus(task.status) || !control?.cancel) continue;
       if (typeFilter && !typeFilter.has(type)) continue;
       controls.push(control);
       control.cancel(reason);
@@ -1275,6 +1315,31 @@ function createTaskService({ aiService, agentService, autoConfirmationService, t
     }
   }
 
+  function recoverInterruptedEvaluationTask(state) {
+    if (activeTasks.has('evaluation-run')) {
+      return;
+    }
+    const task = state?.evaluationTask;
+    if (!isActiveTaskStatus(task?.status)) {
+      return;
+    }
+    const message = '上次评标未完成，请重新评标';
+    const partial = {
+      evaluationResult: state.evaluationResult?.status === 'running'
+        ? { ...state.evaluationResult, status: 'error', error: message, progressMessage: message, updatedAt: now() }
+        : state.evaluationResult,
+      evaluationTask: {
+        ...task,
+        status: 'error',
+        progress: 100,
+        error: message,
+        logs: [message],
+        updated_at: now(),
+      },
+    };
+    evaluationStore.updateEvaluationWithoutReload(partial);
+  }
+
   function recoverInterruptedDuplicateCheckTask(state) {
     if (activeTasks.has('duplicate-analysis')) {
       return;
@@ -1360,6 +1425,7 @@ function createTaskService({ aiService, agentService, autoConfirmationService, t
   const rejectionCheckRecoveryState = rejectionCheckStore.loadRejectionCheck() || {};
   const duplicateCheckRecoveryState = duplicateCheckStore.loadDuplicateCheck() || {};
   const feasibilityReportRecoveryState = feasibilityReportStore?.loadFeasibilityReport?.() || {};
+  const evaluationRecoveryState = evaluationStore?.loadEvaluation?.() || {};
   recoverInterruptedBidSectionExtractionTask(technicalPlanRecoveryState);
   recoverInterruptedBidAnalysisTask(technicalPlanRecoveryState);
   recoverInterruptedOutlineGenerationTask(technicalPlanRecoveryState);
@@ -1370,6 +1436,7 @@ function createTaskService({ aiService, agentService, autoConfirmationService, t
   recoverInterruptedRejectionCheckTasks(rejectionCheckRecoveryState);
   recoverInterruptedDuplicateCheckTask(duplicateCheckRecoveryState);
   recoverInterruptedFeasibilityTasks(feasibilityReportRecoveryState);
+  recoverInterruptedEvaluationTask(evaluationRecoveryState);
 
   return {
     subscribe,
@@ -1511,6 +1578,9 @@ function createTaskService({ aiService, agentService, autoConfirmationService, t
     startRejectionCheck(payload) {
       return startManagedTask('rejection-check-run', payload, runRejectionCheckTask, payload?.workspaceState || {});
     },
+    startEvaluationRun(payload) {
+      return startManagedTask('evaluation-run', payload, runEvaluationTask, payload?.workspaceState || {});
+    },
     startDuplicateAnalysis(payload) {
       if (!duplicateCheckService?.runAnalysisTask) {
         throw new Error('标书查重任务服务尚未初始化');
@@ -1636,6 +1706,15 @@ function createTaskService({ aiService, agentService, autoConfirmationService, t
           documentRole === 'bid' ? ['rejection-check-run'] : undefined,
         ),
       });
+    },
+    importEvaluationFromTechnicalPlan() {
+      return evaluationStore.importFromTechnicalPlan({
+        beforeCommit: () => cancelEvaluationTasks('评分标准与正文已更新，后台任务已取消'),
+      });
+    },
+    async resetEvaluation() {
+      await cancelEvaluationTasks('AI评标已重置，后台任务已取消');
+      return evaluationStore.clearEvaluation();
     },
     async resetFeasibilityReport() {
       await cancelFeasibilityReportTasks('可研报告已重置，后台任务已取消');

@@ -228,6 +228,14 @@ const bridge = {
     exportExcel: (request) => ipcRenderer.invoke('rejection-check:export-excel', request),
     clear: () => ipcRenderer.invoke('rejection-check:clear'),
   },
+  evaluation: {
+    loadState: () => ipcRenderer.invoke('evaluation:load-state'),
+    importFromTechnicalPlan: () => ipcRenderer.invoke('evaluation:import-from-technical-plan'),
+    saveUiState: (payload) => ipcRenderer.invoke('evaluation:save-ui-state', payload),
+    updateState: (partial) => ipcRenderer.invoke('evaluation:update-state', partial),
+    exportExcel: (request) => ipcRenderer.invoke('evaluation:export-excel', request),
+    clear: () => ipcRenderer.invoke('evaluation:clear'),
+  },
   templates: {
     list: () => ipcRenderer.invoke('templates:list'),
     get: (templateId) => ipcRenderer.invoke('templates:get', templateId),
@@ -246,6 +254,7 @@ const bridge = {
     pauseContentGeneration: () => ipcRenderer.invoke('tasks:pause-content-generation'),
     startRejectionItemsExtraction: (payload) => ipcRenderer.invoke('tasks:start-rejection-items-extraction', payload),
     startRejectionCheck: (payload) => ipcRenderer.invoke('tasks:start-rejection-check', payload),
+    startEvaluation: (payload) => ipcRenderer.invoke('tasks:start-evaluation-run', payload),
     startDuplicateAnalysis: (payload) => ipcRenderer.invoke('tasks:start-duplicate-analysis', payload),
     startFeasibilityAnalysis: (payload) => ipcRenderer.invoke('tasks:start-feasibility-analysis', payload),
     startFeasibilityOutline: (payload) => ipcRenderer.invoke('tasks:start-feasibility-outline', payload),
