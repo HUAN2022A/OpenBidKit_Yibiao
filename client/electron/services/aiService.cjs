@@ -1549,7 +1549,7 @@ async function testOpenAICompatibleImageModel(app, config, provider) {
   const requestBody = createOpenAICompatibleImageRequestBody(
     provider,
     imageConfig,
-    '大字报，内容是“易标AI老好了”',
+    '大字报，内容是“铸标AI老好了”',
   );
 
   try {
@@ -1658,7 +1658,7 @@ async function testGoogleImageModel(app, config) {
   const requestMode = normalizeImageRequestMode(imageConfig);
   const requestId = createRequestId();
   const logTitle = 'AI生图测试-Google AI Studio';
-  const requestBody = createGoogleImageRequestBody('大字报，内容是“易标AI老好了”', normalizeGoogleImageSize(imageConfig));
+  const requestBody = createGoogleImageRequestBody('大字报，内容是“铸标AI老好了”', normalizeGoogleImageSize(imageConfig));
   const url = createGoogleImageUrl(baseUrl, imageConfig.model_name, requestMode);
   let responseData = null;
 
@@ -2356,7 +2356,7 @@ async function generateComfyUIImage(app, config, request) {
 async function testComfyUIImageModel(app, config) {
   const testRequest = {
     title: '测试',
-    prompt: '大字报，内容是"易标AI老好了"',
+    prompt: '大字报，内容是"铸标AI老好了"',
   };
   const { image, workflow_source: workflowSource } = await runComfyUIImageGeneration(app, config, testRequest, {
     returnRawImage: true,

@@ -52,12 +52,12 @@
 
 .settings-tab.is-active {
   color: var(--yb-primary);
-  background: rgba(33, 116, 253, 0.12);
+  background: rgba(196, 0, 0, 0.12);
 }
 
 .settings-tab:hover:not(.is-active) {
   color: var(--yb-primary);
-  background: rgba(33, 116, 253, 0.06);
+  background: rgba(196, 0, 0, 0.06);
 }
 
 /* [8971-8973] (rewritten) settings-page-section second decl (overflow hidden) */
@@ -231,7 +231,7 @@ fieldset.settings-list {
   max-height: 280px;
   overflow: auto;
   padding: 6px;
-  background: #ffffff;
+  background: var(--yb-surface);
   border: 1px solid #ccd6e3;
   border-radius: var(--yb-radius-md);
   box-shadow: 0 18px 44px rgba(23, 32, 51, 0.1);
@@ -244,7 +244,7 @@ fieldset.settings-list {
   padding: 8px 10px;
   color: var(--yb-text-soft);
   font-size: 12px;
-  background: #ffffff;
+  background: var(--yb-surface);
   border-bottom: 1px solid var(--yb-border-soft);
 }
 
@@ -265,7 +265,7 @@ fieldset.settings-list {
 .font-picker-option:hover,
 .font-picker-option.is-selected {
   color: var(--yb-primary-deep);
-  background: rgba(33, 116, 253, 0.1);
+  background: rgba(196, 0, 0, 0.1);
 }
 
 .font-picker-empty {
@@ -301,16 +301,16 @@ fieldset.settings-list {
 
 .export-bullet-option:hover,
 .export-bullet-option.is-active {
-  background: #ffffff;
+  background: var(--yb-surface);
   border-color: var(--yb-primary-deep);
-  box-shadow: 0 0 0 3px rgba(33, 116, 253, 0.14);
+  box-shadow: 0 0 0 3px rgba(196, 0, 0, 0.14);
 }
 
 .settings-row input:focus,
 .settings-row select:focus,
 .settings-row textarea:focus {
   background-color: #ffffff;
-  border-color: rgba(33, 116, 253, 0.5);
+  border-color: rgba(196, 0, 0, 0.5);
   box-shadow: var(--yb-focus-ring);
 }
 
@@ -330,8 +330,8 @@ fieldset.settings-list {
 }
 
 .input-with-action:focus-within {
-  background: #ffffff;
-  border-color: rgba(33, 116, 253, 0.5);
+  background: var(--yb-surface);
+  border-color: rgba(196, 0, 0, 0.5);
   box-shadow: var(--yb-focus-ring);
 }
 
@@ -376,7 +376,7 @@ fieldset.settings-list {
 .input-with-action-icon-button:hover:not(:disabled),
 .input-with-action-icon-button[aria-pressed="true"]:not(:disabled) {
   color: var(--yb-primary);
-  background: rgba(33, 116, 253, 0.1);
+  background: rgba(196, 0, 0, 0.1);
 }
 
 .input-with-action-icon-button:disabled {
@@ -396,7 +396,7 @@ fieldset.settings-list {
 
 .input-with-action-button:hover:not(:disabled) {
   color: var(--yb-primary-deep);
-  background: rgba(33, 116, 253, 0.1);
+  background: rgba(196, 0, 0, 0.1);
 }
 
 .input-with-action-button:disabled {
@@ -434,8 +434,8 @@ fieldset.settings-list {
   color: var(--yb-primary);
   font-size: 13px;
   font-weight: 800;
-  background: rgba(33, 116, 253, 0.1);
-  border: 1px solid rgba(33, 116, 253, 0.16);
+  background: rgba(196, 0, 0, 0.1);
+  border: 1px solid rgba(196, 0, 0, 0.16);
   border-radius: var(--yb-radius-md);
 }
 
@@ -451,7 +451,7 @@ fieldset.settings-list {
   gap: 14px;
   margin: 0 24px 12px;
   padding: 12px 16px;
-  background: #ffffff;
+  background: var(--yb-surface);
   border: 1px solid var(--yb-border-soft);
   border-radius: var(--yb-radius-lg);
   box-shadow: 0 8px 20px rgba(36, 48, 72, 0.05);
@@ -504,7 +504,7 @@ fieldset.settings-list {
   gap: 14px;
   margin: 0 24px 12px;
   padding: 12px 16px;
-  background: #ffffff;
+  background: var(--yb-surface);
   border: 1px solid var(--yb-border-soft);
   border-radius: var(--yb-radius-lg);
   box-shadow: 0 8px 20px rgba(36, 48, 72, 0.05);
@@ -541,7 +541,7 @@ fieldset.settings-list {
 
 .agent-self-check-status.is-checking em {
   color: var(--yb-primary);
-  background: rgba(33, 116, 253, 0.1);
+  background: rgba(196, 0, 0, 0.1);
 }
 
 .agent-self-check-status.is-normal em {
@@ -564,7 +564,7 @@ fieldset.settings-list {
   gap: 14px;
   margin: 12px 24px 20px;
   padding: 16px;
-  background: #ffffff;
+  background: var(--yb-surface);
   border: 1px solid var(--yb-border-soft);
   border-radius: var(--yb-radius-lg);
   box-shadow: 0 8px 20px rgba(36, 48, 72, 0.05);
@@ -662,7 +662,7 @@ fieldset.settings-list {
 }
 
 .agent-self-check-step.is-running {
-  border-color: rgba(33, 116, 253, 0.24);
+  border-color: rgba(196, 0, 0, 0.24);
 }
 
 .agent-diagnostic-section {
@@ -683,7 +683,7 @@ fieldset.settings-list {
 }
 
 .agent-diagnostic-section.is-running {
-  border-color: rgba(33, 116, 253, 0.24);
+  border-color: rgba(196, 0, 0, 0.24);
 }
 
 .agent-diagnostic-section.is-error {
@@ -738,7 +738,7 @@ fieldset.settings-list {
 
 .agent-diagnostic-section.is-running .agent-diagnostic-section-head em {
   color: var(--yb-primary);
-  background: rgba(33, 116, 253, 0.1);
+  background: rgba(196, 0, 0, 0.1);
 }
 
 .agent-diagnostic-section.is-error .agent-diagnostic-section-head em {
@@ -762,7 +762,7 @@ fieldset.settings-list {
   min-width: 0;
   gap: 4px;
   padding: 10px;
-  background: #ffffff;
+  background: var(--yb-surface);
   border: 1px solid var(--yb-border-soft);
   border-radius: var(--yb-radius-md);
 }
@@ -845,7 +845,7 @@ fieldset.settings-list {
 .agent-tool-check-item.is-pending em,
 .agent-tool-check-item.is-running em {
   color: var(--yb-primary);
-  background: rgba(33, 116, 253, 0.1);
+  background: rgba(196, 0, 0, 0.1);
 }
 
 .agent-tool-check-item.is-warning {
@@ -914,7 +914,7 @@ fieldset.settings-list {
   max-height: 220px;
   justify-self: end;
   object-fit: contain;
-  background: #ffffff;
+  background: var(--yb-surface);
   border: 1px solid var(--yb-border-soft);
   border-radius: var(--yb-radius-lg);
 }
@@ -935,8 +935,8 @@ fieldset.settings-list {
   color: var(--yb-text-soft);
   font-size: 13px;
   line-height: 1.55;
-  background: rgba(33, 116, 253, 0.06);
-  border: 1px solid rgba(33, 116, 253, 0.12);
+  background: rgba(196, 0, 0, 0.06);
+  border: 1px solid rgba(196, 0, 0, 0.12);
   border-radius: var(--yb-radius-md);
 }
 
@@ -999,17 +999,17 @@ fieldset.settings-list {
   color: var(--yb-primary);
   font-size: 11px;
   font-weight: 800;
-  background: rgba(33, 116, 253, 0.1);
-  border: 1px solid rgba(33, 116, 253, 0.14);
+  background: rgba(196, 0, 0, 0.1);
+  border: 1px solid rgba(196, 0, 0, 0.14);
   border-radius: var(--yb-radius-pill);
 }
 
 .parser-help-table thead .parser-help-col-primary {
-  background: linear-gradient(180deg, rgba(33, 116, 253, 0.12) 0%, rgba(248, 250, 253, 0.95) 100%);
+  background: linear-gradient(180deg, rgba(196, 0, 0, 0.12) 0%, rgba(248, 250, 253, 0.95) 100%);
 }
 
 .parser-help-table thead .parser-help-col-accent {
-  background: linear-gradient(180deg, rgba(91, 84, 211, 0.1) 0%, rgba(248, 250, 253, 0.95) 100%);
+  background: linear-gradient(180deg, rgba(143, 19, 16, 0.1) 0%, rgba(248, 250, 253, 0.95) 100%);
 }
 
 .parser-help-table thead .parser-help-col-muted {
@@ -1050,13 +1050,13 @@ fieldset.settings-list {
   background: var(--yb-bg);
   border: 1px solid var(--yb-border-soft);
   border-radius: var(--yb-radius-xl);
-  box-shadow: 0 12px 28px rgba(33, 116, 253, 0.06);
+  box-shadow: var(--yb-shadow-sm);
 }
 
 .about-update-card {
   align-content: start;
   background:
-    radial-gradient(circle at top right, rgba(33, 116, 253, 0.16), transparent 42%),
+    radial-gradient(circle at top right, rgba(196, 0, 0, 0.16), transparent 42%),
     linear-gradient(135deg, #ffffff, #f7fbff);
 }
 
@@ -1077,8 +1077,8 @@ fieldset.settings-list {
   color: var(--yb-primary);
   font-size: 12px;
   font-weight: 800;
-  background: rgba(33, 116, 253, 0.08);
-  border: 1px solid rgba(33, 116, 253, 0.12);
+  background: rgba(196, 0, 0, 0.08);
+  border: 1px solid rgba(196, 0, 0, 0.12);
   border-radius: var(--yb-radius-pill);
 }
 
@@ -1164,7 +1164,7 @@ fieldset.settings-list {
 }
 
 .about-links-activate:hover {
-  border-color: rgba(33, 116, 253, 0.28);
+  border-color: rgba(196, 0, 0, 0.28);
   transform: translateY(-1px);
 }
 
@@ -1200,11 +1200,11 @@ fieldset.settings-list {
   padding: 18px;
   color: var(--yb-text-soft);
   background:
-    radial-gradient(circle at top left, rgba(33, 116, 253, 0.14), transparent 36%),
+    radial-gradient(circle at top left, rgba(196, 0, 0, 0.14), transparent 36%),
     linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(248, 251, 255, 0.92));
-  border: 1px solid rgba(33, 116, 253, 0.16);
+  border: 1px solid rgba(196, 0, 0, 0.16);
   border-radius: var(--yb-radius-lg);
-  box-shadow: 0 12px 28px rgba(33, 116, 253, 0.07);
+  box-shadow: var(--yb-shadow-sm);
 }
 
 .privacy-statement-head {
@@ -1220,8 +1220,8 @@ fieldset.settings-list {
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  background: rgba(33, 116, 253, 0.1);
-  border: 1px solid rgba(33, 116, 253, 0.16);
+  background: rgba(196, 0, 0, 0.1);
+  border: 1px solid rgba(196, 0, 0, 0.16);
   border-radius: var(--yb-radius-pill);
 }
 
@@ -1248,7 +1248,7 @@ fieldset.settings-list {
   gap: 10px;
   padding: 16px;
   background: rgba(255, 255, 255, 0.86);
-  border: 1px solid rgba(33, 116, 253, 0.12);
+  border: 1px solid rgba(196, 0, 0, 0.12);
   border-radius: var(--yb-radius-lg);
 }
 

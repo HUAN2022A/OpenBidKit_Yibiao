@@ -1,18 +1,19 @@
 export type SectionId =
-  | 'bid-generation'
+  | 'home'
+  | 'prepare'
+  | 'generate'
+  | 'review'
+  | 'export'
   | 'technical-plan'
   | 'existing-plan-expansion'
   | 'feasibility-report'
   | 'business-bid'
-  | 'knowledge-base'
   | 'document-knowledge-base'
   | 'image-knowledge-base'
   | 'resources'
-  | 'bid-check'
   | 'duplicate-check'
   | 'rejection-check'
   | 'ai-evaluation'
-  | 'template-settings'
   | 'my-templates'
   | 'new-template'
   | 'export-format'
@@ -38,7 +39,7 @@ export interface AppSubMenuItem {
   id: SectionId;
   label: string;
   description: string;
-  icon?: 'document' | 'expand' | 'briefcase' | 'compare' | 'shield' | 'code' | 'prompt' | 'file' | 'export' | 'tool';
+  icon?: 'document' | 'expand' | 'briefcase' | 'compare' | 'shield' | 'code' | 'prompt' | 'file' | 'export' | 'tool' | 'radar' | 'home';
   badge?: string;
   notice?: AppMenuNotice;
 }

@@ -82,7 +82,7 @@
 }
 
 .donation-amount-option:has(input:focus-visible) {
-  outline: 3px solid rgba(33, 116, 253, 0.2);
+  outline: 3px solid rgba(196, 0, 0, 0.2);
   outline-offset: 2px;
 }
 
@@ -139,7 +139,7 @@
 }
 
 .donation-identity-grid input:focus {
-  background: #ffffff;
+  background: var(--yb-surface);
   border-color: rgba(212, 112, 34, 0.55);
   box-shadow: 0 0 0 3px rgba(212, 112, 34, 0.12);
 }
@@ -157,7 +157,7 @@
 
 .donation-qr-wrap {
   padding: 9px;
-  background: #ffffff;
+  background: var(--yb-surface);
   border-radius: 14px;
   box-shadow: 0 10px 28px rgba(85, 51, 18, 0.1);
 }

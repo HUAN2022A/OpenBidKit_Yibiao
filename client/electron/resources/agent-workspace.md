@@ -1,6 +1,6 @@
-# 易标智能体工作区
+# 铸标智能体工作区
 
-你在易标客户端创建的临时工作区内工作。
+你在铸标客户端创建的临时工作区内工作。
 
 可用命令：rg、fd、jq、node、ls、cat、pwd、head、tail、wc、sort、uniq、mkdir、cp、mv、rm、touch、basename、dirname、realpath、cut、tr、du、stat、grep、find、sed。
 

@@ -125,7 +125,7 @@ export function buildExportFormatCssVars(config: ExportFormatConfig): Record<str
   // ── 章节页框 ──
   const headingBorder = config.heading_border;
   const frameEnabled = headingBorder?.enabled === true;
-  const frameColor = headingBorder?.border_color || '#2174fd';
+  const frameColor = headingBorder?.border_color || '#c40000';
   const frameCellColors = DEFAULT_HEADING_BORDER_CELL_COLORS.map((color, index) => headingBorder?.level_cell_colors?.[index] || color);
   vars['--ef-chapter-frame-border'] = frameEnabled ? `0.8pt solid ${frameColor}` : 'none';
   vars['--ef-chapter-frame-color'] = frameEnabled ? frameColor : 'transparent';

@@ -690,7 +690,7 @@ function createPiRuntimeService({ app, configStore, aiService, isMonitorActive, 
   async function runTask(payload = {}) {
     if (activeTask) throw new Error(`${runtimeName} 正在执行其他任务`);
     const taskId = payload.task_id || crypto.randomUUID();
-    const title = payload.title || '易标智能体任务';
+    const title = payload.title || '铸标智能体任务';
     const outputFile = payload.output_file || 'agent-result.md';
     const timeoutMs = normalizeTimeoutMs(payload.timeout_ms);
     const maxRetries = normalizeMaxRetries(payload.max_retries);
@@ -1416,7 +1416,7 @@ function createPiRuntimeService({ app, configStore, aiService, isMonitorActive, 
       const sessionSnapshot = agentCheck.session_snapshot || {};
       const snapshotValidation = agentCheck.snapshot_validation || validatePiSessionSnapshot(sessionSnapshot);
       if (Object.keys(sessionSnapshot).length) {
-        setStep('resources', snapshotValidation.resourcesValid ? 'success' : 'error', snapshotValidation.resourcesValid ? '仅加载易标内置工作区指令' : 'Pi 资源加载结果不符合配置');
+        setStep('resources', snapshotValidation.resourcesValid ? 'success' : 'error', snapshotValidation.resourcesValid ? '仅加载铸标内置工作区指令' : 'Pi 资源加载结果不符合配置');
       } else {
         setStep('resources', 'skipped', 'Session 未创建，无法校验资源加载');
       }

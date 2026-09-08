@@ -2,9 +2,8 @@ import * as Tooltip from '@radix-ui/react-tooltip';
 import { useState, type ComponentType, type ReactElement, type SVGProps } from 'react';
 import { getAppMenuItems, getParentMenuItemBySection } from '../app/menuConfig';
 import type { AppMenuItem, SectionId } from '../shared/types/navigation';
-import { AppDialog, useToast } from '../shared/ui';
+import { useToast } from '../shared/ui';
 import logoUrl from '../../assets/icon_256.png';
-import groupChatQrUrl from '../../assets/group-chat-qr.png';
 
 interface SidebarProps {
   activeSection: SectionId;
@@ -13,20 +12,21 @@ interface SidebarProps {
 }
 
 const navigationIcons: Record<SectionId, ComponentType<SVGProps<SVGSVGElement>>> = {
-  'bid-generation': BidGenerationIcon,
+  home: HomeIcon,
+  prepare: ArchiveIcon,
+  generate: BidGenerationIcon,
+  review: BidCheckIcon,
+  export: ExportIcon,
   'technical-plan': DocumentIcon,
   'existing-plan-expansion': DocumentIcon,
   'feasibility-report': DocumentIcon,
   'business-bid': BriefcaseIcon,
-  'knowledge-base': ArchiveIcon,
   'document-knowledge-base': ArchiveIcon,
   'image-knowledge-base': ArchiveIcon,
   resources: ResourcesIcon,
-  'bid-check': BidCheckIcon,
   'duplicate-check': CompareIcon,
   'rejection-check': ShieldIcon,
   'ai-evaluation': BidCheckIcon,
-  'template-settings': DocumentIcon,
   'my-templates': DocumentIcon,
   'new-template': DocumentIcon,
   'export-format': DocumentIcon,
@@ -43,11 +43,8 @@ const navigationIcons: Record<SectionId, ComponentType<SVGProps<SVGSVGElement>>>
   settings: GearIcon,
 };
 
-const USER_GUIDE_URL = 'https://wiki.agnet.top/';
-
 function Sidebar({ activeSection, developerMode, onSectionChange }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const [groupChatOpen, setGroupChatOpen] = useState(false);
   const { showToast } = useToast();
   const menuItems = getAppMenuItems(developerMode);
   const activeParent = getParentMenuItemBySection(activeSection, developerMode);
@@ -79,7 +76,7 @@ function Sidebar({ activeSection, developerMode, onSectionChange }: SidebarProps
           <img src={logoUrl} alt="" />
         </div>
         <div className="brand-copy">
-          <span>易标</span>
+          <span>铸标</span>
           <strong>投标工具箱</strong>
         </div>
       </div>
@@ -121,24 +118,8 @@ function Sidebar({ activeSection, developerMode, onSectionChange }: SidebarProps
       </nav>
 
       <div className="sidebar-footer">
-        <div className="sidebar-footer-shortcuts">
-          {collapsed ? wrapTooltip('使用文档', renderUserGuideButton()) : renderUserGuideButton()}
-          {collapsed ? wrapTooltip('加群', renderGroupChatButton(() => setGroupChatOpen(true))) : renderGroupChatButton(() => setGroupChatOpen(true))}
-        </div>
         {collapsed ? wrapTooltip('设置', renderSettingsButton(activeSection, onSectionChange)) : renderSettingsButton(activeSection, onSectionChange)}
       </div>
-
-      <AppDialog
-        open={groupChatOpen}
-        onOpenChange={setGroupChatOpen}
-        kicker="用户交流"
-        title="扫码加入交流群"
-        description="使用微信扫描下方二维码，加入易标用户交流群。"
-        cardClassName="group-chat-dialog"
-        actions={<button type="button" className="secondary-action" onClick={() => setGroupChatOpen(false)}>关闭</button>}
-      >
-        <img className="group-chat-qr" src={groupChatQrUrl} alt="易标用户交流群二维码" />
-      </AppDialog>
     </aside>
   );
 }
@@ -176,42 +157,6 @@ function renderSettingsButton(activeSection: SectionId, onSectionChange: (sectio
   );
 }
 
-function renderUserGuideButton() {
-  return (
-    <button
-      type="button"
-      className="settings-trigger sidebar-footer-shortcut"
-      onClick={() => void openExternalUrl(USER_GUIDE_URL)}
-      aria-label="使用文档"
-    >
-      <span className="nav-icon" aria-hidden="true">
-        <BookIcon />
-      </span>
-      <span className="settings-copy">
-        <strong>文档</strong>
-      </span>
-    </button>
-  );
-}
-
-function renderGroupChatButton(onClick: () => void) {
-  return (
-    <button
-      type="button"
-      className="settings-trigger sidebar-footer-shortcut"
-      onClick={onClick}
-      aria-label="加群"
-    >
-      <span className="nav-icon" aria-hidden="true">
-        <GroupChatIcon />
-      </span>
-      <span className="settings-copy">
-        <strong>加群</strong>
-      </span>
-    </button>
-  );
-}
-
 function wrapTooltip(label: string, child: ReactElement) {
   return (
     <Tooltip.Root key={label}>
@@ -223,6 +168,26 @@ function wrapTooltip(label: string, child: ReactElement) {
         </Tooltip.Content>
       </Tooltip.Portal>
     </Tooltip.Root>
+  );
+}
+
+function HomeIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M4 10.5 12 4l8 6.5" />
+      <path d="M6 9.5V20h12V9.5" />
+      <path d="M10 20v-5.5h4V20" />
+    </svg>
+  );
+}
+
+function ExportIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M12 14V4" />
+      <path d="m7 8 5-5 5 5" />
+      <path d="M5 14v5h14v-5" />
+    </svg>
   );
 }
 
@@ -355,27 +320,6 @@ function PluginIcon(props: SVGProps<SVGSVGElement>) {
       <path d="M16 3v5" />
       <path d="M6 8h12v2a6 6 0 0 1-12 0z" />
       <path d="M12 16v5" />
-    </svg>
-  );
-}
-
-function BookIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
-      <path d="M5.5 4.5h5.2c1.25 0 2.3 1.05 2.3 2.3v12.7c-.45-.8-1.25-1.3-2.3-1.3H5.5z" />
-      <path d="M18.5 4.5h-5.2C12.05 4.5 11 5.55 11 6.8v12.7c.45-.8 1.25-1.3 2.3-1.3h5.2z" />
-      <path d="M8 8h2" />
-      <path d="M14 8h2" />
-    </svg>
-  );
-}
-
-function GroupChatIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M4.5 5.5h12v9H9l-4.5 3v-3z" />
-      <path d="M16.5 9.5h3v7h-2v2l-3.2-2H12" />
-      <path d="M8 9h.01M12 9h.01" />
     </svg>
   );
 }

@@ -783,7 +783,7 @@ async function analyzePiSelfCheckWithModel(aiService, input) {
     const result = await aiService.requestJson({
       messages: [{
         role: 'user',
-        content: `你是易标客户端 Pi Agent 自检诊断器。请根据诊断数据定位根因。\n\n约束：\n1. 只能从 action_catalog 中选择 recommended_action_ids。\n2. 不得生成脚本、命令或要求修改系统防火墙。\n3. 结论必须引用明确证据。\n4. 返回 JSON：{"summary":"","root_cause":"","confidence":"high|medium|low","evidence":[],"recommended_action_ids":[],"manual_actions":[]}。\n\naction_catalog：${JSON.stringify(actionCatalog)}\n\ndiagnostics：${sanitizeDiagnosisInput(input)}`,
+        content: `你是铸标客户端 Pi Agent 自检诊断器。请根据诊断数据定位根因。\n\n约束：\n1. 只能从 action_catalog 中选择 recommended_action_ids。\n2. 不得生成脚本、命令或要求修改系统防火墙。\n3. 结论必须引用明确证据。\n4. 返回 JSON：{"summary":"","root_cause":"","confidence":"high|medium|low","evidence":[],"recommended_action_ids":[],"manual_actions":[]}。\n\naction_catalog：${JSON.stringify(actionCatalog)}\n\ndiagnostics：${sanitizeDiagnosisInput(input)}`,
       }],
       schemaName: 'Pi智能体自检诊断',
       max_retries: 1,
@@ -861,7 +861,7 @@ function createPiDiagnosticSections({ layout, sdkVersion, sessionSnapshot = {}, 
       id: 'pi-resources',
       title: '资源加载',
       status: validation.resourcesValid ? 'success' : 'error',
-      summary: validation.resourcesValid ? '仅加载易标内置工作区指令和错误规范化扩展' : '资源加载结果不符合配置',
+      summary: validation.resourcesValid ? '仅加载铸标内置工作区指令和错误规范化扩展' : '资源加载结果不符合配置',
       details: [
         { label: '上下文文件', value: sessionSnapshot.context_files?.join('、') || '-' },
         { label: 'Skill', value: String(sessionSnapshot.skills?.length || 0) },

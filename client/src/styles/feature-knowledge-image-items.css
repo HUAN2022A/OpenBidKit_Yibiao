@@ -24,12 +24,12 @@
 
 .knowledge-item-kind-tag {
   color: var(--yb-primary);
-  background: rgba(33, 116, 253, 0.1);
+  background: rgba(196, 0, 0, 0.1);
 }
 
 .knowledge-item-image-type-tag {
   color: var(--yb-violet);
-  background: rgba(91, 84, 211, 0.1);
+  background: rgba(143, 19, 16, 0.1);
 }
 
 /* 图片条目缩略图按钮：点击打开大图预览 */
@@ -47,7 +47,7 @@
 }
 
 .knowledge-item-image-thumb:hover {
-  border-color: rgba(33, 116, 253, 0.35);
+  border-color: rgba(196, 0, 0, 0.35);
   box-shadow: var(--yb-shadow-sm);
 }
 

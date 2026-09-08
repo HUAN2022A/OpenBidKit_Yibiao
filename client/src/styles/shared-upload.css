@@ -52,8 +52,8 @@
 /* 拖拽文件悬停时的高亮态 */
 .upload-row.is-drag-over {
   position: relative;
-  background: linear-gradient(135deg, rgba(33, 116, 253, 0.07), rgba(255, 255, 255, 0.98));
-  border-color: rgba(33, 116, 253, 0.45);
+  background: linear-gradient(135deg, rgba(196, 0, 0, 0.07), rgba(255, 255, 255, 0.98));
+  border-color: rgba(196, 0, 0, 0.45);
   box-shadow: var(--yb-focus-ring);
 }
 
@@ -117,8 +117,8 @@
   justify-items: start;
   gap: 4px;
   padding: 10px 14px;
-  background: linear-gradient(90deg, rgba(33, 116, 253, 0.055), rgba(33, 116, 253, 0.012));
-  border: 1px solid rgba(33, 116, 253, 0.13);
+  background: linear-gradient(90deg, rgba(196, 0, 0, 0.055), rgba(196, 0, 0, 0.012));
+  border: 1px solid rgba(196, 0, 0, 0.13);
   border-radius: var(--yb-radius-lg);
 }
 
@@ -172,7 +172,7 @@
   min-width: 0;
   gap: 12px;
   padding: 10px 12px;
-  background: #ffffff;
+  background: var(--yb-surface);
   border: 1px solid var(--yb-border-soft);
   border-radius: var(--yb-radius-lg);
 }
