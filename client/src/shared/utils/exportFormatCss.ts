@@ -170,7 +170,7 @@ export function buildExportFormatCssVars(config: ExportFormatConfig): Record<str
   const table = config.table;
   if (table) {
     vars['--ef-table-border-width'] = `${table.border_width ?? 1}px`;
-    vars['--ef-table-border-color'] = table.border_color || '#dcdff6';
+    vars['--ef-table-border-color'] = table.border_color || '#000000';
     vars['--ef-table-cell-padding'] = `${table.cell_padding_pt ?? 6}pt`;
     vars['--ef-table-width'] = table.full_width ? '100%' : 'auto';
     const tableAreas = [

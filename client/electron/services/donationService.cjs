@@ -4,6 +4,9 @@ const { performance } = require('node:perf_hooks');
 const { safeStorage } = require('electron');
 const { getDonationStateFilePath } = require('../utils/paths.cjs');
 
+// 打赏弹窗总开关：默认 false（关闭），弹窗永不弹出。如需启用，把这里改为 true 即可。
+const DONATION_PROMPT_ENABLED = false;
+
 const ISSUE_WIKI_API_BASE = 'https://wiki.agnet.top/api';
 const STATE_VERSION = 2;
 const RUNTIME_CHECK_INTERVAL_MS = 60_000;
@@ -20,6 +23,7 @@ const defaultState = {
   processedExportBucket: 0,
   donationMarker: '',
   pendingOrders: [],
+  promptDismissed: false,
 };
 
 /** 读取并规范化本地打赏提示状态。 */
@@ -41,6 +45,7 @@ function readState(filePath) {
           }))
           .filter((item) => item.merchantOrderNo)
         : [],
+      promptDismissed: Boolean(value.promptDismissed),
     };
   } catch {
     return { ...defaultState };
@@ -95,6 +100,8 @@ async function requestDonationApi(path, options = {}) {
 
 /** 提供远程支付、本地累计计数和自动提示状态。 */
 function createDonationService({ app, onPrompt, onPaid }) {
+  // 打赏弹窗默认关闭：DONATION_PROMPT_ENABLED 为 false 时置空 onPrompt，累计使用/导出次数等所有触发点都不再弹窗。
+  if (!DONATION_PROMPT_ENABLED) onPrompt = undefined;
   const stateFile = getDonationStateFilePath(app);
   const state = readState(stateFile);
   let runtimeCheckpoint = performance.now();
@@ -145,7 +152,7 @@ function createDonationService({ app, onPrompt, onPaid }) {
     const bucket = Math.floor(state.accumulatedRuntimeMs / RUNTIME_PROMPT_INTERVAL_MS);
     if (bucket <= state.processedRuntimeBucket) return false;
     state.processedRuntimeBucket = bucket;
-    if (!donated) onPrompt?.(summary('runtime'));
+    if (!donated && !state.promptDismissed) onPrompt?.(summary('runtime'));
     return true;
   };
 
@@ -284,17 +291,23 @@ function createDonationService({ app, onPrompt, onPaid }) {
       let prompt = null;
       if (bucket > state.processedExportBucket) {
         state.processedExportBucket = bucket;
-        if (!donated) prompt = summary('word-export');
+        if (!donated && !state.promptDismissed) prompt = summary('word-export');
       }
       tryPersist('保存 Word 导出次数');
       if (prompt && !deferPrompt) onPrompt?.(prompt);
       return prompt;
     },
     showPrompt(prompt) {
-      if (prompt && !donated) {
+      if (prompt && !donated && !state.promptDismissed) {
         checkpointRuntime();
         onPrompt?.(summary(prompt.reason));
       }
+    },
+    dismissPrompts() {
+      if (state.promptDismissed) return;
+      state.promptDismissed = true;
+      checkpointRuntime();
+      tryPersist('保存不再提醒标记');
     },
     close() {
       if (closed) return;

@@ -16,6 +16,7 @@ const bridge = {
     createTip: (request) => ipcRenderer.invoke('donation:create-tip', request),
     getOrderStatus: (merchantOrderNo) => ipcRenderer.invoke('donation:get-order-status', merchantOrderNo),
     finalizeOrderStatus: (merchantOrderNo) => ipcRenderer.invoke('donation:finalize-order-status', merchantOrderNo),
+    dismissPrompts: () => ipcRenderer.invoke('donation:dismiss-prompts'),
     onPrompt: (callback) => {
       const listener = (_event, payload) => callback(payload);
       ipcRenderer.on('donation:prompt', listener);

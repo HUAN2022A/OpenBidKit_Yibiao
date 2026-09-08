@@ -3017,6 +3017,7 @@ async function runContentGenerationTask({ aiService, agentService, workspaceStor
   const developerModeEnabled = isDeveloperModeEnabled(aiService);
   const tableRequirement = normalizeTableRequirement(generationOptions.tableRequirement ?? generationOptions.table_requirement);
   let maxTables = maxTablesForRequirement(tableRequirement, leaves.length);
+  const preferKnowledgeImageReuse = Boolean(generationOptions.preferKnowledgeImageReuse ?? generationOptions.prefer_knowledge_image_reuse ?? true);
   const referenceKnowledgeDocumentIds = normalizeReferenceDocumentIds(storedPlan);
   const enableConsistencyAudit = Boolean(generationOptions.enableConsistencyAudit ?? generationOptions.enable_consistency_audit ?? true);
   const requestedConsistencyRepairMode = normalizeConsistencyRepairMode(generationOptions.consistencyRepairMode ?? generationOptions.consistency_repair_mode);
@@ -6340,6 +6341,7 @@ workspace 文件说明：
       imageItems,
       aiService,
       log: (message) => { logs = [...logs, message]; },
+      preferKnowledgeImageReuse,
     });
 
     pauseIfRequested('正文生成已在全文图片编排结果保存前暂停，本次计划未保存；继续后将重新执行。');

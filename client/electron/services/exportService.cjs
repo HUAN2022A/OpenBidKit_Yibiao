@@ -19,6 +19,8 @@ const {
   Header,
   HeightRule,
   HeadingLevel,
+  HorizontalPositionAlign,
+  HorizontalPositionRelativeFrom,
   ImageRun,
   LevelFormat,
   LevelSuffix,
@@ -28,13 +30,19 @@ const {
   PageOrientation,
   Paragraph,
   ShadingType,
+  Tab,
+  TabStopPosition,
+  TabStopType,
   Table,
   TableCell,
   TableLayoutType,
   TableRow,
   TextRun,
+  TextWrappingType,
   UnderlineType,
   VerticalAlignTable,
+  VerticalPositionAlign,
+  VerticalPositionRelativeFrom,
   WidthType,
 } = require('docx');
 
@@ -48,10 +56,10 @@ const CHAPTER_LEAF_CONTENT_WIDTH_TWIPS = DOCX_TABLE_WIDTH_TWIPS - CHAPTER_LEAF_T
 const DEFAULT_HEADING_BORDER_CELL_COLORS = ['#e0ecff', '#e9f1ff', '#f2f7ff', '#f8fbff', '#ffffff', '#ffffff'];
 const DEFAULT_TABLE_STYLE = {
   border_width: 1,
-  border_color: '#dcdff6',
+  border_color: '#000000',
   cell_padding_pt: 6,
   full_width: true,
-  header_row: { font: '黑体', size: '小四', alignment: '居中对齐', text_color: '#243048', background_color: '#eef5ff' },
+  header_row: { font: '黑体', size: '小四', alignment: '居中对齐', text_color: '#243048', background_color: '#ffffff' },
   first_column: { font: '宋体', size: '小四', alignment: '左对齐', text_color: '#243048', background_color: '#ffffff' },
   body_cell: { font: '宋体', size: '小四', alignment: '左对齐', text_color: '#243048', background_color: '#ffffff' },
 };
@@ -437,7 +445,7 @@ function buildChapterFrameTable(exportFormat, rows) {
 }
 
 function createPageNumberRuns(format, runOptions) {
-  const parts = String(format || '第{page}页').split('{page}');
+  const parts = String(format || '{page}').split('{page}');
   const runs = [];
 
   if (parts[0]) {
@@ -451,10 +459,39 @@ function createPageNumberRuns(format, runOptions) {
   return runs;
 }
 
-function buildWordHeaders(pageSetup) {
+function resolveHeaderText(value, projectName, globalFacts) {
+  return String(value || '')
+    .replace(/\{project_name\}/g, projectName || '')
+    .replace(/\{fact:([^}:]+)(?::([^}]+))?\}/g, (_match, title, field) => {
+      const fact = (Array.isArray(globalFacts) ? globalFacts : [])
+        .find((group) => String(group?.title || '').trim() === String(title).trim());
+      if (!fact) return '';
+      const content = String(fact.content || '');
+      if (field) {
+        // 提取「字段：值」形式的字段值（到句号或换行为止）
+        const match = content.match(new RegExp(`${String(field)}[：:]([^。\\n]+)`, 'u'));
+        return match ? match[1].trim() : '';
+      }
+      return content.replace(/\s+/g, ' ').trim();
+    });
+}
+
+// 页眉左侧公司 logo（内置资源，缺失时静默跳过）。
+function loadHeaderLogo() {
+  try {
+    const logoPath = path.join(__dirname, '..', 'resources', 'header-logo.jpg');
+    if (!fs.existsSync(logoPath)) return null;
+    return { type: 'jpg', buffer: fs.readFileSync(logoPath) };
+  } catch {
+    return null;
+  }
+}
+
+function buildWordHeaders(pageSetup, projectName, globalFacts) {
   const enabled = pageSetup ? pageSetup.header_enabled === true : false;
-  const headerText = cleanText(pageSetup?.header_text || '').trim();
-  if (!enabled || !headerText) return undefined;
+  const headerText = cleanText(resolveHeaderText(pageSetup?.header_text || '', projectName, globalFacts)).trim();
+  const headerRightText = cleanText(resolveHeaderText(pageSetup?.header_right_text || '', projectName, globalFacts)).trim();
+  if (!enabled || (!headerText && !headerRightText)) return undefined;
 
   const runOptions = {
     font: pageSetup?.header_font || '宋体',
@@ -462,12 +499,113 @@ function buildWordHeaders(pageSetup) {
     color: normalizeDocxColor(pageSetup?.header_color || '#536176'),
   };
 
+  const underlineEnabled = pageSetup?.header_underline === true;
+  const logoEnabled = pageSetup?.header_logo_enabled === true;
+  const logo = logoEnabled ? loadHeaderLogo() : null;
+
+  // logo + 下划线同时开启：改用两列表格（logo 左列 + 文字右列 + 底部边框），
+  // 避免浮动图片挤压段落底部边框，导致横线左端缩进。
+  if (logo && underlineEnabled) {
+    const bottom = { style: BorderStyle.SINGLE, size: 4, color: '000000', space: 0 };
+    const none = { style: BorderStyle.NIL, size: 0, color: 'FFFFFF' };
+    const cellBorders = { top: none, left: none, right: none, bottom };
+
+    const textChildren = [];
+    if (headerText) textChildren.push(new TextRun({ ...runOptions, text: headerText }));
+
+    const cells = [
+      new TableCell({
+        width: { size: 800, type: WidthType.DXA },
+        margins: { top: 0, bottom: 0, left: 0, right: 60 },
+        verticalAlign: VerticalAlignTable.CENTER,
+        borders: cellBorders,
+        children: [
+          new Paragraph({
+            children: [new ImageRun({
+              type: logo.type,
+              data: logo.buffer,
+              transformation: { width: 53, height: 15 },
+              altText: { title: '公司logo', description: '页眉logo', name: 'header-logo' },
+            })],
+          }),
+        ],
+      }),
+      new TableCell({
+        width: { size: 8612, type: WidthType.DXA },
+        margins: { top: 0, bottom: 0, left: 0, right: 0 },
+        verticalAlign: VerticalAlignTable.CENTER,
+        borders: cellBorders,
+        children: [
+          new Paragraph({
+            alignment: alignmentToWordType(pageSetup?.header_alignment || '居中对齐'),
+            children: textChildren,
+          }),
+        ],
+      }),
+    ];
+
+    return {
+      default: new Header({
+        children: [
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            columnWidths: [800, 8612],
+            layout: TableLayoutType.FIXED,
+            borders: {
+              top: none,
+              bottom: none,
+              left: none,
+              right: none,
+              insideHorizontal: none,
+              insideVertical: none,
+            },
+            rows: [new TableRow({ children: cells })],
+          }),
+        ],
+      }),
+    };
+  }
+
+  // 常规段落布局（无 logo 或不下划线）
+  const children = [];
+  if (logo) {
+    children.push(new ImageRun({
+      type: logo.type,
+      data: logo.buffer,
+      transformation: { width: 53, height: 15 },
+      altText: { title: '公司logo', description: '页眉logo', name: 'header-logo' },
+      floating: {
+        horizontalPosition: {
+          relative: HorizontalPositionRelativeFrom.MARGIN,
+          align: HorizontalPositionAlign.LEFT,
+        },
+        verticalPosition: {
+          relative: VerticalPositionRelativeFrom.PARAGRAPH,
+          align: VerticalPositionAlign.CENTER,
+        },
+        wrap: { type: TextWrappingType.NONE },
+      },
+    }));
+  }
+  if (headerText) children.push(new TextRun({ ...runOptions, text: headerText }));
+  if (headerText && headerRightText) children.push(new TextRun({ ...runOptions, children: [new Tab()] }));
+  if (headerRightText) children.push(new TextRun({ ...runOptions, text: headerRightText }));
+
+  const underline = underlineEnabled
+    ? { bottom: { style: BorderStyle.SINGLE, size: 4, color: '000000', space: 0 } }
+    : undefined;
+
   return {
     default: new Header({
       children: [
         new Paragraph({
           alignment: alignmentToWordType(pageSetup?.header_alignment || '居中对齐'),
-          children: [new TextRun({ ...runOptions, text: headerText })],
+          indent: { left: 0, right: 0 },
+          border: underline,
+          tabStops: headerRightText
+            ? [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }]
+            : undefined,
+          children,
         }),
       ],
     }),
@@ -494,7 +632,7 @@ function buildWordFooters(pageSetup) {
     footerChildren.push(new TextRun({ ...runOptions, text: '    ' }));
   }
   if (pageNumberEnabled) {
-    footerChildren.push(...createPageNumberRuns(pageSetup?.page_number_format || '第{page}页', runOptions));
+    footerChildren.push(...createPageNumberRuns(pageSetup?.page_number_format || '{page}', runOptions));
   }
 
   return {
@@ -2337,7 +2475,7 @@ async function buildDocxResult(payload, options = {}) {
   const sectionChildren = [...children];
   const pageNumberEnabled = isPageNumberEnabled(pageSetup);
   const pageNumberStart = Math.max(1, Math.floor(Number(pageSetup ? pageSetup.page_number_start : 1) || 1));
-  const headers = buildWordHeaders(pageSetup);
+  const headers = buildWordHeaders(pageSetup, payload.project_name, payload.global_facts || payload.globalFacts);
   const footers = buildWordFooters(pageSetup);
 
   const numbering = createNumberingConfig(context);

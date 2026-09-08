@@ -945,6 +945,10 @@ function ExportFormatPage({ mode = 'create', templateId = null, onBack }: Export
               <input type="text" value={config.page.header_text} onChange={(event) => updatePage({ header_text: event.target.value })} />
             </label>
             <label className="settings-row">
+              <div className="settings-row-copy"><strong>页眉右栏</strong><span>支持占位符 {'{project_name}'}，导出时替换为当前项目名称；留空则只显示左侧文本。</span></div>
+              <input type="text" value={config.page.header_right_text} onChange={(event) => updatePage({ header_right_text: event.target.value })} />
+            </label>
+            <label className="settings-row">
               <div className="settings-row-copy"><strong>页眉字体</strong></div>
               <FontPicker value={config.page.header_font} options={fontOptions} onChange={(font) => updatePage({ header_font: font })} />
             </label>
@@ -963,6 +967,14 @@ function ExportFormatPage({ mode = 'create', templateId = null, onBack }: Export
             <label className="settings-row">
               <div className="settings-row-copy"><strong>页眉颜色</strong></div>
               <input type="color" value={config.page.header_color} onChange={(event) => updatePage({ header_color: event.target.value })} />
+            </label>
+            <label className="settings-row">
+              <div className="settings-row-copy"><strong>页眉公司 logo</strong><span>在页眉左侧显示内置公司 logo。</span></div>
+              <AppSwitch checked={config.page.header_logo_enabled} onCheckedChange={(checked) => updatePage({ header_logo_enabled: checked })} />
+            </label>
+            <label className="settings-row">
+              <div className="settings-row-copy"><strong>页眉下划线</strong><span>页眉文字下方显示一条黑色横线。</span></div>
+              <AppSwitch checked={config.page.header_underline} onCheckedChange={(checked) => updatePage({ header_underline: checked })} />
             </label>
           </>
         )}
@@ -1533,7 +1545,7 @@ export function TemplatePreview({ config, previewStyle }: { config: ExportFormat
   const renderPageFooter = (pageIndex: number) => {
     if (!showFooterArea) return null;
     const pageNo = Math.max(1, Number(config.page.page_number_start) || 1) + pageIndex;
-    const pageNumberText = String(config.page.page_number_format || '第{page}页').replace('{page}', String(pageNo));
+    const pageNumberText = String(config.page.page_number_format || '{page}').replace('{page}', String(pageNo));
 
     return (
       <div className="export-template-page-footer" style={config.page.footer_enabled ? undefined : { textAlign: 'center' }}>

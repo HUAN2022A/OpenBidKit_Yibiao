@@ -112,6 +112,7 @@ const defaultContentGenerationOptions: ContentGenerationOptions = {
   useHtmlImages: true,
   maxHtmlImages: 10,
   htmlImageTypes: DEFAULT_HTML_IMAGE_TYPES,
+  preferKnowledgeImageReuse: true,
   tableRequirement: 'heavy',
   enableConsistencyAudit: true,
   consistencyRepairMode: 'agent',
@@ -158,6 +159,7 @@ function normalizeGenerationOptions(options: ContentGenerationOptions | undefine
     useHtmlImages: Boolean(options?.useHtmlImages ?? fallback.useHtmlImages),
     maxHtmlImages: Math.max(0, Math.min(Number.isFinite(requestedMaxHtmlImages) ? Math.round(requestedMaxHtmlImages) : fallback.maxHtmlImages, maxAiImagesLimit)),
     htmlImageTypes: String(options?.htmlImageTypes ?? fallback.htmlImageTypes),
+    preferKnowledgeImageReuse: Boolean(options?.preferKnowledgeImageReuse ?? fallback.preferKnowledgeImageReuse),
     tableRequirement: isContentTableRequirement(tableRequirement) ? tableRequirement : fallback.tableRequirement,
     enableConsistencyAudit: Boolean(options?.enableConsistencyAudit ?? fallback.enableConsistencyAudit),
     consistencyRepairMode: isConsistencyRepairMode(options?.consistencyRepairMode) ? options.consistencyRepairMode : fallback.consistencyRepairMode,
@@ -830,6 +832,7 @@ function ContentEditPage({
         useHtmlImages: savedGenerationOptions.useHtmlImages,
         maxHtmlImages: savedGenerationOptions.maxHtmlImages,
         htmlImageTypes: savedGenerationOptions.htmlImageTypes,
+        preferKnowledgeImageReuse: savedGenerationOptions.preferKnowledgeImageReuse,
         tableRequirement: savedGenerationOptions.tableRequirement,
         enableConsistencyAudit: savedGenerationOptions.enableConsistencyAudit,
         consistencyRepairMode: savedGenerationOptions.consistencyRepairMode,
@@ -900,6 +903,7 @@ function ContentEditPage({
           useHtmlImages: savedGenerationOptions.useHtmlImages,
           maxHtmlImages: savedGenerationOptions.maxHtmlImages,
           htmlImageTypes: savedGenerationOptions.htmlImageTypes,
+          preferKnowledgeImageReuse: savedGenerationOptions.preferKnowledgeImageReuse,
           tableRequirement: savedGenerationOptions.tableRequirement,
           enableConsistencyAudit: savedGenerationOptions.enableConsistencyAudit,
           consistencyRepairMode: savedGenerationOptions.consistencyRepairMode,
@@ -1087,9 +1091,20 @@ function ContentEditPage({
               </button>
             </>
           ) : (
-            <button type="button" className="primary-action" onClick={handleGenerationButtonClick} disabled={pausing || !leaves.length}>
-              {generationButtonLabel}
-            </button>
+            <>
+              {contentIllustrationPlan && (
+                <button
+                  type="button"
+                  className="secondary-action"
+                  onClick={() => void rerunIllustrations()}
+                  disabled={taskBlocksGeneration}
+                  title="仅重新编排并生成配图，不重新生成正文"
+                >仅重新配图</button>
+              )}
+              <button type="button" className="primary-action" onClick={handleGenerationButtonClick} disabled={pausing || !leaves.length}>
+                {generationButtonLabel}
+              </button>
+            </>
           )}
         </div>
       </section>
@@ -1107,12 +1122,6 @@ function ContentEditPage({
               成功 <b>{illustrationStats[kind].success}</b>
             </span>
           ))}
-          <button
-            type="button"
-            className="secondary-action content-dev-stats-action"
-            disabled={taskBlocksGeneration}
-            onClick={() => void rerunIllustrations()}
-          >仅重新配图</button>
         </aside>
       )}
 
@@ -1442,6 +1451,18 @@ function ContentEditPage({
                   </div>
                 </div>
               )}
+              <div className="content-generation-config-group">
+                <div className="content-generation-config-row">
+                  <div className="content-generation-image-option-title">
+                    <strong>优先复用知识库图片</strong>
+                  </div>
+                  <AppSwitch
+                    checked={draftGenerationOptions.preferKnowledgeImageReuse}
+                    disabled={generationStrategyLocked}
+                    onCheckedChange={(checked) => setDraftGenerationOptions((prev) => ({ ...prev, preferKnowledgeImageReuse: checked }))}
+                    aria-label="是否优先复用知识库图片" />
+                </div>
+              </div>
             </div>
             <div className="content-regenerate-actions">
               <Dialog.Close className="secondary-action" type="button">取消</Dialog.Close>

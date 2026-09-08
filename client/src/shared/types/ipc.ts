@@ -596,6 +596,7 @@ export interface YibiaoBridge {
     createTip: (request: DonationCreateRequest) => Promise<DonationIntent>;
     getOrderStatus: (merchantOrderNo: string) => Promise<DonationOrderStatus>;
     finalizeOrderStatus: (merchantOrderNo: string) => Promise<DonationOrderStatus>;
+    dismissPrompts: () => Promise<void>;
     onPrompt: (callback: (payload: DonationPromptPayload) => void) => () => void;
     onPaid: (callback: () => void) => () => void;
   };

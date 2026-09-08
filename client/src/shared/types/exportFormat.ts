@@ -119,10 +119,13 @@ export interface PageSetupConfig {
   margin_right_cm: number;
   header_enabled: boolean;
   header_text: string;
+  header_right_text: string;
   header_font: string;
   header_size: string;
   header_alignment: string;
   header_color: string;
+  header_logo_enabled: boolean;
+  header_underline: boolean;
   footer_enabled: boolean;
   footer_text: string;
   footer_distance_cm: number;
@@ -131,7 +134,7 @@ export interface PageSetupConfig {
   footer_alignment: string;
   footer_color: string;
   page_number_enabled: boolean;
-  page_number_format: string;   // '第{page}页'
+  page_number_format: string;   // '{page}'（纯页码），或如 '第{page}页'
   page_number_start: number;
 }
 
@@ -310,16 +313,19 @@ const DEFAULT_PAGE_SETUP: PageSetupConfig = {
   paper_size: 'a4',
   orientation: 'portrait',
   first_page_different: false,
-  margin_top_cm: 2,
-  margin_bottom_cm: 2,
-  margin_left_cm: 2,
-  margin_right_cm: 2,
+  margin_top_cm: 2.2,
+  margin_bottom_cm: 2.2,
+  margin_left_cm: 2.2,
+  margin_right_cm: 2.2,
   header_enabled: false,
   header_text: '',
+  header_right_text: '',
   header_font: '宋体',
   header_size: '小五',
   header_alignment: '居中对齐',
   header_color: '#536176',
+  header_logo_enabled: false,
+  header_underline: false,
   footer_enabled: false,
   footer_text: '',
   footer_distance_cm: 1.75,
@@ -328,7 +334,7 @@ const DEFAULT_PAGE_SETUP: PageSetupConfig = {
   footer_alignment: '居中对齐',
   footer_color: '#536176',
   page_number_enabled: false,
-  page_number_format: '第{page}页',
+  page_number_format: '{page}',
   page_number_start: 1,
 };
 
@@ -355,7 +361,7 @@ const DEFAULT_TABLE_CELL: TableCellStyleConfig = {
 
 const DEFAULT_TABLE_STYLE: TableStyleConfig = {
   border_width: 1,
-  border_color: '#dcdff6',
+  border_color: '#000000',
   cell_padding_pt: 6,
   full_width: true,
   header_row: {
@@ -363,7 +369,7 @@ const DEFAULT_TABLE_STYLE: TableStyleConfig = {
     size: '小四',
     alignment: '居中对齐',
     text_color: '#243048',
-    background_color: '#eef5ff',
+    background_color: '#ffffff',
   },
   first_column: {
     font: '宋体',

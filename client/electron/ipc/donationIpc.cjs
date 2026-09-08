@@ -6,6 +6,7 @@ function registerDonationIpc({ donationService }) {
   ipcMain.handle('donation:create-tip', (_event, request) => donationService.createTip(request));
   ipcMain.handle('donation:get-order-status', (_event, merchantOrderNo) => donationService.getOrderStatus(merchantOrderNo));
   ipcMain.handle('donation:finalize-order-status', (_event, merchantOrderNo) => donationService.finalizeOrderStatus(merchantOrderNo));
+  ipcMain.handle('donation:dismiss-prompts', () => donationService.dismissPrompts());
 }
 
 module.exports = {

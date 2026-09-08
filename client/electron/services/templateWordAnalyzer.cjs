@@ -70,16 +70,19 @@ function createDefaultConfig() {
       paper_size: 'a4',
       orientation: 'portrait',
       first_page_different: false,
-      margin_top_cm: 2,
-      margin_bottom_cm: 2,
-      margin_left_cm: 2,
-      margin_right_cm: 2,
+      margin_top_cm: 2.2,
+      margin_bottom_cm: 2.2,
+      margin_left_cm: 2.2,
+      margin_right_cm: 2.2,
       header_enabled: false,
       header_text: '',
+      header_right_text: '',
       header_font: '宋体',
       header_size: '小五',
       header_alignment: '居中对齐',
       header_color: '#536176',
+      header_logo_enabled: false,
+      header_underline: false,
       footer_enabled: false,
       footer_text: '',
       footer_distance_cm: 1.75,
@@ -88,7 +91,7 @@ function createDefaultConfig() {
       footer_alignment: '居中对齐',
       footer_color: '#536176',
       page_number_enabled: false,
-      page_number_format: '第{page}页',
+      page_number_format: '{page}',
       page_number_start: 1,
     },
     heading_level1_page_break_before: false,
@@ -114,17 +117,17 @@ function createDefaultConfig() {
       spacing_before_pt: 0,
       spacing_after_pt: 0,
       first_line_indent_chars: 2,
-      line_spacing_multiple: 1.2,
+      line_spacing_multiple: 1.5,
       list_style: 'disc',
       ordered_list_style: 'decimal-dot',
       list_indent_chars: 2,
     },
     table: {
       border_width: 1,
-      border_color: '#dcdff6',
+      border_color: '#000000',
       cell_padding_pt: 6,
       full_width: true,
-      header_row: { font: '黑体', size: '小四', alignment: '居中对齐', text_color: '#243048', background_color: '#eef5ff' },
+      header_row: { font: '黑体', size: '小四', alignment: '居中对齐', text_color: '#243048', background_color: '#ffffff' },
       first_column: { font: '宋体', size: '小四', alignment: '左对齐', text_color: '#243048', background_color: '#ffffff' },
       body_cell: { font: '宋体', size: '小四', alignment: '左对齐', text_color: '#243048', background_color: '#ffffff' },
     },
@@ -1114,18 +1117,28 @@ function mapFactsToConfig(facts, options = {}) {
   const pg = facts.page || {};
   if (pg.widthMm != null || pg.heightMm != null) {
     const paper = paperSizeFromMm(pg.widthMm, pg.heightMm);
-    if (paper) setField('page.paper_size', paper);
-    else pushUnclassified('paper', `${pg.widthMm}×${pg.heightMm}mm`, 'page.paper_size');
+    // Letter/Legal 是 Word/WPS 的出厂默认纸张（尤其 WPS 新建文档常默认 Letter），
+    // 中文标书以 A4 为准，这里忽略以免覆盖默认 A4。
+    if (paper && paper !== 'letter' && paper !== 'legal') setField('page.paper_size', paper);
+    else if (!paper) pushUnclassified('paper', `${pg.widthMm}×${pg.heightMm}mm`, 'page.paper_size');
   }
   if (pg.orient != null || pg.widthMm != null) {
     setField('page.orientation', mapOrientation(pg.orient, pg.widthMm, pg.heightMm));
   }
   if (pg.firstPageDifferent != null) setField('page.first_page_different', Boolean(pg.firstPageDifferent));
   if (pg.margins) {
-    if (pg.margins.topCm != null) setField('page.margin_top_cm', pg.margins.topCm);
-    if (pg.margins.bottomCm != null) setField('page.margin_bottom_cm', pg.margins.bottomCm);
-    if (pg.margins.leftCm != null) setField('page.margin_left_cm', pg.margins.leftCm);
-    if (pg.margins.rightCm != null) setField('page.margin_right_cm', pg.margins.rightCm);
+    // Word/WPS 出厂边距（上下 1 英寸 ≈ 2.54cm、左右 1.25 英寸 ≈ 3.17cm）是未格式化的默认值，
+    // 中文标书正文常见四周 2.2cm 左右，这里忽略以免覆盖默认边距。
+    const isFactoryDefaultMargin = pg.margins.topCm === 2.54
+      && pg.margins.bottomCm === 2.54
+      && pg.margins.leftCm === 3.17
+      && pg.margins.rightCm === 3.17;
+    if (!isFactoryDefaultMargin) {
+      if (pg.margins.topCm != null) setField('page.margin_top_cm', pg.margins.topCm);
+      if (pg.margins.bottomCm != null) setField('page.margin_bottom_cm', pg.margins.bottomCm);
+      if (pg.margins.leftCm != null) setField('page.margin_left_cm', pg.margins.leftCm);
+      if (pg.margins.rightCm != null) setField('page.margin_right_cm', pg.margins.rightCm);
+    }
   }
   if (pg.hasHeaderRef != null) {
     setField('page.header_enabled', Boolean(pg.hasHeaderRef));
@@ -1190,8 +1203,9 @@ function mapFactsToConfig(facts, options = {}) {
   if (bodySizeHalf != null) {
     const pt = halfPointsToPt(bodySizeHalf);
     const size = ptToSizeName(pt);
-    if (size) setField('body_text.size', size);
-    else pushUnclassified('size', `${pt}pt`, 'body_text.size');
+    // 五号及更小是 Word/WPS 的 Normal 出厂字号，非标书正文常见选择，保留默认小四。
+    if (size && SIZE_TO_PT[size] > SIZE_TO_PT['五号']) setField('body_text.size', size);
+    else if (!size) pushUnclassified('size', `${pt}pt`, 'body_text.size');
   }
   const bodyJc = body.jc || sample.jc;
   if (bodyJc) {

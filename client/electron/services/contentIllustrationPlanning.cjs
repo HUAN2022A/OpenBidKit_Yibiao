@@ -347,11 +347,11 @@ function resolveIllustrationPlan(content, context) {
 // 在 resolveIllustrationPlan 产出 plan 之后检索知识库历史相似图：命中且通过安全校验的
 // plan item 会被原地打上 reuse_source，供生成阶段直接复用历史图；未命中的保持原样走生成流程。
 // imageItems 与 aiService 由 contentGenerationTask 在 plan 产出后传入。
-async function applyIllustrationReuse(plan, { sections, imageItems, aiService, log = () => {} }) {
+async function applyIllustrationReuse(plan, { sections, imageItems, aiService, log = () => {}, preferKnowledgeImageReuse = true }) {
   const items = Array.isArray(plan?.items) ? plan.items : [];
   const candidates = Array.isArray(imageItems) ? imageItems : [];
   if (!items.length || !candidates.length) return plan;
-  await retrieveSimilarIllustrations({ planItems: items, sections, imageItems: candidates, aiService, log });
+  await retrieveSimilarIllustrations({ planItems: items, sections, imageItems: candidates, aiService, log, preferKnowledgeImageReuse });
   return plan;
 }
 

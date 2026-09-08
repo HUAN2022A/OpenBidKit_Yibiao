@@ -275,8 +275,9 @@ test('解析 fixture docx 并映射为 ExportFormatConfig', async (t) => {
   // 页面
   assert.equal(config.page.paper_size, 'a4');
   assert.equal(config.page.orientation, 'portrait');
-  assert.equal(config.page.margin_top_cm, 2.54);
-  assert.equal(config.page.margin_left_cm, 3.17);
+  // fixture 使用 Word 出厂边距（1 英寸/1.25 英寸），被护栏忽略，保留默认 2.2cm
+  assert.equal(config.page.margin_top_cm, 2.2);
+  assert.equal(config.page.margin_left_cm, 2.2);
   assert.equal(config.page.header_enabled, true);
   assert.equal(config.page.header_text, '某某招标文件');
   assert.equal(config.page.footer_enabled, true);
@@ -309,6 +310,50 @@ test('解析 fixture docx 并映射为 ExportFormatConfig', async (t) => {
   // summary 分组存在
   assert.ok(summary.some((s) => s.group === '页面设置' && s.source === 'rule'));
   assert.ok(summary.some((s) => s.group === '标题样式' && s.source === 'rule'));
+});
+
+test('Letter/Legal 纸张忽略，保留默认 A4（Word/WPS 出厂纸张护栏）', () => {
+  const letter = mapFactsToConfig({ page: { widthMm: 215.9, heightMm: 279.4 } });
+  assert.equal(letter.config.page.paper_size, 'a4');
+  assert.equal(letter.confidenceByField['page.paper_size'], 'default');
+
+  const legal = mapFactsToConfig({ page: { widthMm: 215.9, heightMm: 355.6 } });
+  assert.equal(legal.config.page.paper_size, 'a4');
+  assert.equal(legal.confidenceByField['page.paper_size'], 'default');
+
+  // A4 正常识别不受影响
+  const a4 = mapFactsToConfig({ page: { widthMm: 210, heightMm: 297 } });
+  assert.equal(a4.config.page.paper_size, 'a4');
+  assert.equal(a4.confidenceByField['page.paper_size'], 'rule');
+});
+
+test('五号及更小正文忽略，保留默认小四（Normal 出厂字号护栏）', () => {
+  // 21 half-pt = 10.5pt 五号；20 half-pt = 10pt 会就近落到五号
+  const five = mapFactsToConfig({ body: { sizeHalf: 21 } });
+  assert.equal(five.config.body_text.size, '小四');
+  assert.equal(five.confidenceByField['body_text.size'], 'default');
+
+  // 四号（14pt）不被护栏拦截，仍正常识别
+  const four = mapFactsToConfig({ body: { sizeHalf: 28 } });
+  assert.equal(four.config.body_text.size, '四号');
+  assert.equal(four.confidenceByField['body_text.size'], 'rule');
+});
+
+test('Word 出厂边距忽略，保留默认 2.2cm；非默认边距正常识别', () => {
+  // Word 出厂边距（上下 1 英寸、左右 1.25 英寸）
+  const factory = mapFactsToConfig({
+    page: { margins: { topCm: 2.54, bottomCm: 2.54, leftCm: 3.17, rightCm: 3.17 } },
+  });
+  assert.equal(factory.config.page.margin_top_cm, 2.2);
+  assert.equal(factory.config.page.margin_left_cm, 2.2);
+  assert.equal(factory.confidenceByField['page.margin_top_cm'], 'default');
+
+  // 非默认边距（四周 3cm）正常识别，不被护栏拦截
+  const custom = mapFactsToConfig({
+    page: { margins: { topCm: 3, bottomCm: 3, leftCm: 3, rightCm: 3 } },
+  });
+  assert.equal(custom.config.page.margin_top_cm, 3);
+  assert.equal(custom.confidenceByField['page.margin_top_cm'], 'rule');
 });
 
 test('未识别字体进入 unclassified，AI 兜底只补 unclassified 且拒绝非法值', async () => {

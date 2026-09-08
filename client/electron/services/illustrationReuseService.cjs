@@ -124,6 +124,63 @@ function collectCandidates(planItem, imageItems) {
   return chosen.slice(0, REUSE_CANDIDATE_LIMIT);
 }
 
+// 关键词预筛（类型无关召回）：从图注标题与 image_type 提取有意义片段（整段 + 2~4 字滑动窗口），
+// 与候选图 title/resume 做子串命中打分，命中越多、越长得分越高，取 top-N 交给 LLM 精判。
+// 相比 collectCandidates 的 image_type 同义词收窄，这里不再受两套类型词汇表不对齐的限制。
+function extractKeywordNgrams(text) {
+  const value = singleLine(text);
+  if (!value) return new Set();
+  const keywords = new Set();
+  // 按标点/空白切出的完整片段本身就是关键词（如「组织架构图」）。
+  for (const segment of value.split(/[\s，。、；：""''（）()【】\[\]\/\\\-_——…·]+/)) {
+    if (segment.length >= 2) keywords.add(segment);
+  }
+  // 对无分隔的中文/英文连续串做 2~4 字滑动窗口，覆盖「项目管理组织架构图」这类整串短语。
+  const chunks = value.match(/[㐀-鿿A-Za-z0-9]{2,}/g) || [];
+  for (const chunk of chunks) {
+    for (let n = 2; n <= 4; n += 1) {
+      for (let i = 0; i + n <= chunk.length; i += 1) {
+        keywords.add(chunk.slice(i, i + n));
+      }
+    }
+  }
+  return new Set([...keywords].filter((keyword) => keyword.length >= 2));
+}
+
+function scoreImageRelevance(planItem, imageItem) {
+  const keywords = extractKeywordNgrams(`${singleLine(planItem?.title)} ${singleLine(planItem?.image_type)}`);
+  if (!keywords.size) return 0;
+  const haystack = singleLine(`${imageItem?.title} ${imageItem?.resume}`).toLowerCase();
+  let score = 0;
+  for (const keyword of keywords) {
+    if (haystack.includes(keyword.toLowerCase())) score += keyword.length;
+  }
+  return score;
+}
+
+function collectCandidatesByKeyword(planItem, imageItems) {
+  const ranked = [];
+  for (const imageItem of Array.isArray(imageItems) ? imageItems : []) {
+    const id = singleLine(imageItem?.id);
+    const title = singleLine(imageItem?.title);
+    const assetUrl = singleLine(imageItem?.asset_url);
+    // 缺 id/title/asset_url 的条目无法被复用，直接排除。
+    if (!id || !title || !assetUrl) continue;
+    const score = scoreImageRelevance(planItem, imageItem);
+    if (score <= 0) continue;
+    ranked.push({
+      score,
+      id,
+      title,
+      resume: singleLine(imageItem?.resume),
+      asset_url: assetUrl,
+      source_file: singleLine(imageItem?.source_file),
+    });
+  }
+  ranked.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
+  return ranked.slice(0, REUSE_CANDIDATE_LIMIT).map(({ score, ...candidate }) => candidate);
+}
+
 function resolveSectionTexts(planItem, sections) {
   const ids = Array.isArray(planItem?.section_ids) ? planItem.section_ids : [];
   const parts = [];
@@ -240,7 +297,7 @@ async function matchOneCandidate(planItem, sectionText, candidates, aiService) {
  * reuse_source = { item_id, asset_url, confidence }；否则不改动 plan item，走原有生成流程。
  * LLM 调用失败按未命中处理，不中断配图规划；任务暂停类错误原样抛出。
  */
-async function retrieveSimilarIllustrations({ planItems, sections, imageItems, aiService, log = () => {} }) {
+async function retrieveSimilarIllustrations({ planItems, sections, imageItems, aiService, log = () => {}, preferKnowledgeImageReuse = true }) {
   const items = Array.isArray(planItems) ? planItems : [];
   const stats = { total: items.length, reused: 0, missed: 0 };
   if (!items.length) return stats;
@@ -267,11 +324,14 @@ async function retrieveSimilarIllustrations({ planItems, sections, imageItems, a
       continue;
     }
 
-    // L1 收窄，并对候选图 title/resume 执行规则扫描，命中规则的候选不可复用。
-    const candidates = collectCandidates(planItem, availableImages);
+    // L1 候选收窄：优先复用开启时用关键词预筛（类型无关），关闭时用 image_type 同义词收窄；
+    // 并对候选图 title/resume 执行规则扫描，命中规则的候选不可复用。
+    const candidates = preferKnowledgeImageReuse
+      ? collectCandidatesByKeyword(planItem, availableImages)
+      : collectCandidates(planItem, availableImages);
     if (!candidates.length) {
       stats.missed += 1;
-      log(`配图复用：${label} 无同类型历史图候选，按原计划生成。`);
+      log(`配图复用：${label} ${preferKnowledgeImageReuse ? '无关键词相关的历史图候选' : '无同类型历史图候选'}，按原计划生成。`);
       continue;
     }
     const cleanCandidates = candidates.filter((candidate) => !findSensitiveRuleHit(`${candidate.title} ${candidate.resume}`));
@@ -316,5 +376,6 @@ async function retrieveSimilarIllustrations({ planItems, sections, imageItems, a
 
 module.exports = {
   REUSE_CONFIDENCE_THRESHOLD,
+  collectCandidatesByKeyword,
   retrieveSimilarIllustrations,
 };

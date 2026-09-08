@@ -54,6 +54,7 @@ export interface ContentGenerationOptions {
   useHtmlImages: boolean;
   maxHtmlImages: number;
   htmlImageTypes: string;
+  preferKnowledgeImageReuse: boolean;
   tableRequirement: ContentTableRequirement;
   enableConsistencyAudit: boolean;
   consistencyRepairMode: ConsistencyRepairMode;

@@ -160,6 +160,16 @@ export function DonationPromptProvider({ children }: { children: ReactNode }) {
     setError('');
   };
 
+  const dismissForever = async () => {
+    try {
+      await window.yibiao.donation.dismissPrompts();
+      closeDialog();
+      showToast('已关闭打赏提醒，之后不会再打扰你。', 'success');
+    } catch {
+      closeDialog();
+    }
+  };
+
   const submitDonation = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (offlineMode) {
@@ -270,6 +280,7 @@ export function DonationPromptProvider({ children }: { children: ReactNode }) {
         {error ? <p className="donation-error" role="alert">{error}</p> : null}
 
         <div className="donation-dialog-actions">
+          <button type="button" className="text-button" onClick={() => { void dismissForever(); }}>不再提醒</button>
           <button type="button" className="secondary-action" onClick={closeDialog}>暂时不用</button>
           {offlineMode ? null : intent ? (
             <button type="button" className="primary-action" onClick={resetOrder}>重新选择</button>
