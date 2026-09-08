@@ -24,11 +24,16 @@ client/release/
 
 # 智能体命令工具下载临时目录
 client/.tmp-agent-tools-download/
+client/.tmp-opencode-download/
 
 # Open XML 助手构建产物与自包含发布包
 openxmlhelper/**/bin/
 openxmlhelper/**/obj/
 client/vendor/openxml-tools/
+client/vendor/opencode/
+
+# 本地调试临时测试脚本
+client/_test_electron*.cjs
 
 # 临时和缓存文件
 *.tmp
