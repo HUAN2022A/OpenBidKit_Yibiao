@@ -114,6 +114,7 @@ function collectCandidates(planItem, imageItems) {
       id,
       title,
       resume,
+      image_type: imageType,
       asset_url: assetUrl,
       source_file: singleLine(imageItem?.source_file),
     });
@@ -166,13 +167,14 @@ function collectCandidatesByKeyword(planItem, imageItems) {
     const assetUrl = singleLine(imageItem?.asset_url);
     // 缺 id/title/asset_url 的条目无法被复用，直接排除。
     if (!id || !title || !assetUrl) continue;
+    // 关键词打分只用于排序，不再作为硬过滤：零分条目仍进入候选，作为 L2 语义匹配的兜底。
     const score = scoreImageRelevance(planItem, imageItem);
-    if (score <= 0) continue;
     ranked.push({
       score,
       id,
       title,
       resume: singleLine(imageItem?.resume),
+      image_type: singleLine(imageItem?.image_type),
       asset_url: assetUrl,
       source_file: singleLine(imageItem?.source_file),
     });
@@ -359,6 +361,8 @@ async function retrieveSimilarIllustrations({ planItems, sections, imageItems, a
           item_id: candidate.id,
           asset_url: candidate.asset_url,
           confidence: decision.confidence,
+          source_title: candidate.title,
+          source_image_type: candidate.image_type,
         };
         stats.reused += 1;
         log(`配图复用：${label} 命中历史图 ${candidate.id}（confidence ${decision.confidence}），将直接复用。`);

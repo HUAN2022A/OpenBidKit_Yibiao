@@ -14,21 +14,24 @@ function imageItem(overrides = {}) {
 }
 
 test('优先复用：HTML 图形式类型能跨词汇表匹配知识库图（组织架构图 vs 层级图）', () => {
-  const planItem = { title: '项目管理组织架构图', image_type: '组织架构图' };
+  const planItem = { title: '组织架构图', image_type: '组织架构图' };
   const candidates = collectCandidatesByKeyword(planItem, [
     imageItem({ id: 'img-org', title: '公司组织架构图', resume: '公司各部门组织关系', image_type: '层级图' }),
   ]);
   assert.strictEqual(candidates.length, 1);
   assert.strictEqual(candidates[0].id, 'img-org');
+  assert.strictEqual(candidates[0].image_type, '层级图');
   assert.ok(!('score' in candidates[0]), '返回候选不应泄漏内部 score 字段');
 });
 
-test('优先复用：无关键词重叠时不误召回（风险矩阵 vs 实景照片）', () => {
+test('优先复用：无关键词重叠时返回兜底候选（风险矩阵 vs 实景照片）', () => {
   const planItem = { title: '风险矩阵', image_type: '风险矩阵' };
   const candidates = collectCandidatesByKeyword(planItem, [
     imageItem({ id: 'img-photo', title: '设备机房实景照片', resume: '机房设备部署现场', image_type: '实景照片' }),
   ]);
-  assert.strictEqual(candidates.length, 0);
+  assert.strictEqual(candidates.length, 1);
+  assert.strictEqual(candidates[0].id, 'img-photo');
+  assert.strictEqual(candidates[0].image_type, '实景照片');
 });
 
 test('优先复用：按关键词相关性排序，最相关的候选排最前', () => {

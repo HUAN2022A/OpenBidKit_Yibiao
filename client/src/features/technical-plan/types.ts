@@ -263,6 +263,13 @@ export interface ContentIllustrationPlanItem {
     error?: string;
     updated_at?: string;
   };
+  reuse_source?: {
+    item_id: string;
+    asset_url: string;
+    confidence: number;
+    source_title?: string;
+    source_image_type?: string;
+  };
 }
 
 export interface ContentIllustrationPlanState {

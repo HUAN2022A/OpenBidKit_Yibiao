@@ -3842,3 +3842,121 @@
   font-size: clamp(16px, 2vw, 22px);
   font-weight: 900;
 }
+
+/* 配图复用结果弹窗 */
+.illustration-result-card {
+  display: grid;
+  width: min(720px, calc(100vw - 40px));
+  max-height: min(720px, calc(100vh - 40px));
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 16px;
+}
+
+.illustration-result-list {
+  display: grid;
+  align-content: start;
+  gap: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-gutter: stable;
+}
+
+.illustration-result-row {
+  display: grid;
+  gap: 10px;
+  padding: 14px 2px;
+  border-bottom: 1px solid var(--yb-border-soft);
+}
+
+.illustration-result-row:last-child {
+  border-bottom: 0;
+}
+
+.illustration-result-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.illustration-result-head strong {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--yb-text);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.illustration-result-kind {
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  color: var(--yb-text-muted);
+  font-size: 12px;
+  font-weight: 800;
+  background: rgba(23, 32, 51, 0.06);
+  border-radius: var(--yb-radius-pill);
+}
+
+.illustration-result-status {
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  font-size: 12px;
+  font-weight: 800;
+  border-radius: var(--yb-radius-pill);
+}
+
+.illustration-result-status.is-reused {
+  color: var(--yb-success);
+  background: rgba(19, 122, 67, 0.1);
+}
+
+.illustration-result-status.is-generated {
+  color: #667080;
+  background: rgba(123, 132, 146, 0.12);
+}
+
+.illustration-result-status.is-error {
+  color: var(--yb-danger);
+  background: rgba(200, 50, 32, 0.1);
+}
+
+.illustration-result-status.is-pending {
+  color: var(--yb-text-muted);
+  background: rgba(23, 32, 51, 0.06);
+}
+
+.illustration-result-reused {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: rgba(248, 250, 253, 0.86);
+  border: 1px solid var(--yb-border-soft);
+  border-radius: var(--yb-radius-md);
+}
+
+.illustration-result-reused img {
+  max-width: 160px;
+  max-height: 96px;
+  flex: 0 0 auto;
+  object-fit: cover;
+  border: 1px solid var(--yb-border-soft);
+  border-radius: var(--yb-radius-sm);
+}
+
+.illustration-result-reused span {
+  min-width: 0;
+  color: var(--yb-text-soft);
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: break-word;
+}
+
+.illustration-result-empty {
+  margin: 0;
+  padding: 40px 16px;
+  color: var(--yb-text-muted);
+  text-align: center;
+}

@@ -316,6 +316,9 @@ function ContentEditPage({
   const [continuePostProcessingDialogOpen, setContinuePostProcessingDialogOpen] = useState(false);
   const [draftGenerationOptions, setDraftGenerationOptions] = useState<ContentGenerationOptions>(defaultContentGenerationOptions);
   const [htmlImageTypesDialogOpen, setHtmlImageTypesDialogOpen] = useState(false);
+  const [illustrationResultDialogOpen, setIllustrationResultDialogOpen] = useState(false);
+  const [confirmRegenerateOpen, setConfirmRegenerateOpen] = useState(false);
+  const [pendingRegenerateSimulate, setPendingRegenerateSimulate] = useState(false);
   const [htmlImageTypesDraft, setHtmlImageTypesDraft] = useState(DEFAULT_HTML_IMAGE_TYPES);
   const [previewImage, setPreviewImage] = useState<{ src: string; alt: string } | null>(null);
   const [pausePending, setPausePending] = useState(false);
@@ -862,6 +865,18 @@ function ContentEditPage({
       return;
     }
 
+    // 全量重新生成会覆盖现有正文，先二次确认。
+    const regenerate = leaves.length > 0 && resolvedCount === leaves.length;
+    if (regenerate) {
+      setPendingRegenerateSimulate(simulatePartialFailures);
+      setConfirmRegenerateOpen(true);
+      return;
+    }
+
+    await doStartGeneration(simulatePartialFailures);
+  };
+
+  const doStartGeneration = async (simulatePartialFailures = false) => {
     try {
       const config = await window.yibiao?.config.load();
       const nextImageModelStatus = config?.image_model?.status || 'untested';
@@ -1092,6 +1107,9 @@ function ContentEditPage({
             </>
           ) : (
             <>
+              {contentIllustrationPlan && (
+                <button type="button" className="secondary-action" onClick={() => setIllustrationResultDialogOpen(true)} disabled={taskBlocksGeneration} title="查看每个配图位置是复用历史图还是新生成">查看配图结果</button>
+              )}
               {contentIllustrationPlan && (
                 <button
                   type="button"
@@ -1500,6 +1518,58 @@ function ContentEditPage({
         </Dialog.Portal>
       </Dialog.Root>
 
+      <Dialog.Root open={illustrationResultDialogOpen} onOpenChange={setIllustrationResultDialogOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="content-regenerate-modal" />
+          <Dialog.Content className="content-regenerate-card illustration-result-card" aria-describedby={undefined}>
+            <div className="content-regenerate-card-head">
+              <Dialog.Title>配图复用结果</Dialog.Title>
+            </div>
+            <div className="illustration-result-list">
+              {(contentIllustrationPlan?.items ?? []).length === 0 ? (
+                <p className="illustration-result-empty">暂无配图结果</p>
+              ) : (
+                (contentIllustrationPlan?.items ?? []).map((item) => {
+                  const reuseSource = item.reuse_source;
+                  const status = reuseSource
+                    ? 'reused'
+                    : item.generation?.status === 'error'
+                      ? 'error'
+                      : item.generation?.status === 'success'
+                        ? 'generated'
+                        : 'pending';
+                  const statusText = status === 'reused'
+                    ? '复用历史图（把握 ' + Math.round((reuseSource?.confidence ?? 0) * 100) + '%）'
+                    : status === 'error'
+                      ? '生成失败'
+                      : status === 'generated'
+                        ? '新生成'
+                        : '待生成';
+                  return (
+                    <div className="illustration-result-row" key={item.item_id}>
+                      <div className="illustration-result-head">
+                        <strong>{item.title}</strong>
+                        <span className="illustration-result-kind">{illustrationKindLabels[item.kind]}</span>
+                        <span className={'illustration-result-status is-' + status}>{statusText}</span>
+                      </div>
+                      {reuseSource && (
+                        <div className="illustration-result-reused">
+                          {reuseSource.asset_url ? <img src={reuseSource.asset_url} alt={reuseSource.source_title || item.title} loading="lazy" /> : null}
+                          <span>来源：{reuseSource.source_title || '未知'}{reuseSource.source_image_type ? '（' + reuseSource.source_image_type + '）' : ''}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            <div className="content-regenerate-actions">
+              <Dialog.Close className="secondary-action" type="button">关闭</Dialog.Close>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
       <Dialog.Root
         open={Boolean(requirementItem)}
         onOpenChange={(open) => {
@@ -1525,6 +1595,28 @@ function ContentEditPage({
             <div className="content-regenerate-actions">
               <Dialog.Close className="secondary-action" type="button">取消</Dialog.Close>
               <button type="button" className="primary-action" onClick={startSectionRegeneration} disabled={taskBlocksGeneration}>开始重新生成</button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+      <Dialog.Root open={confirmRegenerateOpen} onOpenChange={setConfirmRegenerateOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="content-regenerate-modal" />
+          <Dialog.Content className="content-regenerate-card">
+            <div className="content-regenerate-card-head">
+              <Dialog.Title>重新生成正文？</Dialog.Title>
+              <Dialog.Description>重新生成会覆盖当前已生成的全部正文，且无法恢复。是否继续？</Dialog.Description>
+            </div>
+            <div className="content-regenerate-actions">
+              <Dialog.Close className="secondary-action" type="button">取消</Dialog.Close>
+              <button
+                type="button"
+                className="primary-action"
+                onClick={() => {
+                  setConfirmRegenerateOpen(false);
+                  void doStartGeneration(pendingRegenerateSimulate);
+                }}
+              >确认重新生成</button>
             </div>
           </Dialog.Content>
         </Dialog.Portal>
