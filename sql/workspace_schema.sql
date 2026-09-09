@@ -4,7 +4,7 @@
 -- 1. 本文件用于开源开发者阅读、评审和排查问题，展示 workspace/yibiao.sqlite 的目标完整表结构。
 -- 2. 用户运行客户端时不需要手动执行本文件。
 -- 3. 客户端运行时建表和升级以 Electron Main 侧 migration 代码为准。
--- 4. 当前运行代码已落地 technical_plan_* v1、duplicate_check_* / rejection_check_* v2、knowledge_* v4、technical_plan_global_fact_groups v4、标段兼容 v5/v6、标段选择 v7、旧待选择标段兼容字段 v8、工作流类型和原方案文件状态 v9、招标解析项选择配置 v10、知识库排序 v11、废标项检查多投标文件 v12、已有方案目录配置 v13、多标段优化状态 v14、导出模板库 v15、多招标文件 v16、全文图片编排 v17、目录字数控制 v18、全局事实补全模式 v22、可行性研究报告 v23、知识库图片条目 v24、配图复用标注 v25、AI评标 v26 目标结构。
+-- 4. 当前运行代码已落地 technical_plan_* v1、duplicate_check_* / rejection_check_* v2、knowledge_* v4、technical_plan_global_fact_groups v4、标段兼容 v5/v6、标段选择 v7、旧待选择标段兼容字段 v8、工作流类型和原方案文件状态 v9、招标解析项选择配置 v10、知识库排序 v11、废标项检查多投标文件 v12、已有方案目录配置 v13、多标段优化状态 v14、导出模板库 v15、多招标文件 v16、全文图片编排 v17、目录字数控制 v18、全局事实补全模式 v22、可行性研究报告 v23、知识库图片条目 v24、配图复用标注 v25、AI评标 v26、投标机会 v27 目标结构。
 -- 5. 每次表结构调整后，需要同步更新本文件和 runtime migration 版本。
 -- 6. 本文件不保存历史版本，每次更新都写入最新目标完整结构。
 
@@ -14,7 +14,7 @@ PRAGMA busy_timeout = 5000;
 
 -- 目标完整结构版本。
 -- 运行时代码应通过 PRAGMA user_version 判断是否需要自动升级。
-PRAGMA user_version = 26;
+PRAGMA user_version = 27;
 
 -- ============================================================================
 -- 技术方案 technical_plan_*（v1 已落地）
@@ -987,3 +987,87 @@ CREATE TABLE IF NOT EXISTS evaluation_score_items (
 
 CREATE INDEX IF NOT EXISTS idx_evaluation_score_items_order
 ON evaluation_score_items(result_type, sort_order);
+
+-- ============================================================================
+-- 投标机会 bid_opportunity_*（v27）
+-- ============================================================================
+
+-- 单行 meta（id=1）。enterprise_json 存企业画像基本信息（companyName/industry/regions/strengths）。
+CREATE TABLE IF NOT EXISTS bid_opportunity_meta (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  active_opportunity_id TEXT,
+  active_tab TEXT NOT NULL DEFAULT 'opportunities',
+  enterprise_json TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+-- 企业资质证书列表。
+CREATE TABLE IF NOT EXISTS bid_opportunity_qualifications (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  level TEXT NOT NULL DEFAULT '',
+  cert_no TEXT NOT NULL DEFAULT '',
+  valid_until TEXT NOT NULL DEFAULT '',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+-- 企业历史业绩列表。
+CREATE TABLE IF NOT EXISTS bid_opportunity_performances (
+  id TEXT PRIMARY KEY,
+  project_name TEXT NOT NULL,
+  industry TEXT NOT NULL DEFAULT '',
+  region TEXT NOT NULL DEFAULT '',
+  amount TEXT NOT NULL DEFAULT '',
+  completed_at TEXT NOT NULL DEFAULT '',
+  description TEXT NOT NULL DEFAULT '',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+-- 每条投标机会（公告 + 结构化解析 + 匹配评分 + 线索跟踪）。
+-- 公告原文按 evaluation_documents 的做法写磁盘 markdown，这里只存路径/哈希/字符数。
+-- structured_json / score_json / price_prediction_json / key_dates_json 为运行时序列化的结构化数据。
+CREATE TABLE IF NOT EXISTS bid_opportunities (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  source TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'new',
+  raw_markdown_path TEXT,
+  raw_hash TEXT NOT NULL DEFAULT '',
+  raw_chars INTEGER NOT NULL DEFAULT 0,
+  parse_status TEXT NOT NULL DEFAULT 'idle',
+  structured_json TEXT,
+  score_json TEXT,
+  price_prediction_json TEXT,
+  analysis_text TEXT,
+  recommendation TEXT,
+  tenderer TEXT NOT NULL DEFAULT '',
+  region TEXT NOT NULL DEFAULT '',
+  budget_text TEXT NOT NULL DEFAULT '',
+  deadline_text TEXT NOT NULL DEFAULT '',
+  owner TEXT NOT NULL DEFAULT '',
+  conclusion TEXT NOT NULL DEFAULT '',
+  key_dates_json TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_bid_opportunities_status
+ON bid_opportunities(status);
+
+-- 投标机会后台任务状态。type = bid-opportunity-parse / bid-opportunity-score / bid-opportunity-price。
+CREATE TABLE IF NOT EXISTS bid_opportunity_tasks (
+  type TEXT PRIMARY KEY,
+  task_id TEXT NOT NULL,
+  status TEXT NOT NULL,
+  progress INTEGER NOT NULL DEFAULT 0,
+  stats_json TEXT,
+  error TEXT,
+  started_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);

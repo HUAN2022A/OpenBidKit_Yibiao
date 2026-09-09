@@ -3,7 +3,7 @@ const path = require('node:path');
 const Database = require('better-sqlite3');
 const { getWorkspaceDatabasePath } = require('../utils/paths.cjs');
 
-const schemaVersion = 26;
+const schemaVersion = 28;
 
 function createInitialSchema(db) {
   db.exec(`
@@ -772,6 +772,86 @@ function createEvaluationSchema(db) {
   `);
 }
 
+function createBidOpportunitySchema(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS bid_opportunity_meta (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      active_opportunity_id TEXT,
+      active_tab TEXT NOT NULL DEFAULT 'opportunities',
+      enterprise_json TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS bid_opportunity_qualifications (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      level TEXT NOT NULL DEFAULT '',
+      cert_no TEXT NOT NULL DEFAULT '',
+      valid_until TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS bid_opportunity_performances (
+      id TEXT PRIMARY KEY,
+      project_name TEXT NOT NULL,
+      industry TEXT NOT NULL DEFAULT '',
+      region TEXT NOT NULL DEFAULT '',
+      amount TEXT NOT NULL DEFAULT '',
+      completed_at TEXT NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS bid_opportunities (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      source TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'new',
+      raw_markdown_path TEXT,
+      raw_hash TEXT NOT NULL DEFAULT '',
+      raw_chars INTEGER NOT NULL DEFAULT 0,
+      parse_status TEXT NOT NULL DEFAULT 'idle',
+      structured_json TEXT,
+      score_json TEXT,
+      analysis_text TEXT,
+      recommendation TEXT,
+      tenderer TEXT NOT NULL DEFAULT '',
+      region TEXT NOT NULL DEFAULT '',
+      budget_text TEXT NOT NULL DEFAULT '',
+      deadline_text TEXT NOT NULL DEFAULT '',
+      owner TEXT NOT NULL DEFAULT '',
+      conclusion TEXT NOT NULL DEFAULT '',
+      key_dates_json TEXT,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_bid_opportunities_status
+    ON bid_opportunities(status);
+
+    CREATE TABLE IF NOT EXISTS bid_opportunity_tasks (
+      type TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL,
+      status TEXT NOT NULL,
+      progress INTEGER NOT NULL DEFAULT 0,
+      stats_json TEXT,
+      error TEXT,
+      started_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `);
+}
+
+function addBidOpportunityPricePrediction(db) {
+  addColumnIfMissing(db, 'bid_opportunities', 'price_prediction_json', 'TEXT');
+}
+
 function addColumnIfMissing(db, tableName, columnName, columnType) {
   if (!getExistingTables(db).has(tableName)) return;
   const columns = getExistingColumns(db, tableName);
@@ -1211,6 +1291,17 @@ const schemaHealthTableGroups = [
     ],
     repair: createEvaluationSchema,
   },
+  {
+    version: 27,
+    tables: [
+      'bid_opportunity_meta',
+      'bid_opportunity_qualifications',
+      'bid_opportunity_performances',
+      'bid_opportunities',
+      'bid_opportunity_tasks',
+    ],
+    repair: createBidOpportunitySchema,
+  },
 ];
 
 function removeKnowledgeMigrationMeta(db) {
@@ -1371,6 +1462,13 @@ const schemaHealthColumnGroups = [
     columns: {
       content_mode: 'TEXT',
       content_mode_note: 'TEXT',
+    },
+  },
+  {
+    version: 28,
+    table: 'bid_opportunities',
+    columns: {
+      price_prediction_json: 'TEXT',
     },
   },
 ];
@@ -1566,6 +1664,16 @@ const migrations = [
     version: 26,
     description: 'AI评标',
     up: createEvaluationSchema,
+  },
+  {
+    version: 27,
+    description: '投标机会',
+    up: createBidOpportunitySchema,
+  },
+  {
+    version: 28,
+    description: '投标机会报价预测',
+    up: addBidOpportunityPricePrediction,
   },
 ];
 
