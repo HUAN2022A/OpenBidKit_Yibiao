@@ -14,6 +14,7 @@ const { GLOBAL_FACTS_AGENT_TASK_KEY } = require('./globalFactsAgentV2Config.cjs'
 const { FEASIBILITY_OUTLINE_AGENT_TASK_KEY } = require('./feasibilityOutlineAgentConfig.cjs');
 const { runRejectionCheckTask, runRejectionItemsExtractionTask } = require('./rejectionCheckTask.cjs');
 const { runEvaluationTask } = require('./evaluationTask.cjs');
+const { runBidOpportunityParseTask, runBidOpportunityScoreTask, runBidOpportunityPriceTask } = require('./bidOpportunityTask.cjs');
 const { originalPlanDownstreamTaskTypes } = require('./technicalPlanStore.cjs');
 const {
   clearContent,
@@ -116,6 +117,33 @@ const taskDefinitions = {
     lockPolicy: 'group-exclusive',
     stateKey: 'evaluation',
     field: 'evaluationTask',
+  },
+  'bid-opportunity-parse': {
+    label: '公告解析',
+    group: 'bid-opportunity',
+    groupLabel: '投标机会',
+    step: 1,
+    lockPolicy: 'group-exclusive',
+    stateKey: 'bidOpportunity',
+    field: 'parseTask',
+  },
+  'bid-opportunity-score': {
+    label: '匹配评分',
+    group: 'bid-opportunity',
+    groupLabel: '投标机会',
+    step: 2,
+    lockPolicy: 'group-exclusive',
+    stateKey: 'bidOpportunity',
+    field: 'scoreTask',
+  },
+  'bid-opportunity-price': {
+    label: '报价预测',
+    group: 'bid-opportunity',
+    groupLabel: '投标机会',
+    step: 3,
+    lockPolicy: 'group-exclusive',
+    stateKey: 'bidOpportunity',
+    field: 'priceTask',
   },
   'duplicate-analysis': {
     label: '标书查重分析',
@@ -324,7 +352,7 @@ function createTask(type, payload) {
   };
 }
 
-function createTaskService({ aiService, agentService, autoConfirmationService, technicalPlanStore, rejectionCheckStore, duplicateCheckStore, feasibilityReportStore, knowledgeBaseService, duplicateCheckService, openXmlHelperService, evaluationStore }) {
+function createTaskService({ aiService, agentService, autoConfirmationService, technicalPlanStore, rejectionCheckStore, duplicateCheckStore, feasibilityReportStore, knowledgeBaseService, duplicateCheckService, openXmlHelperService, evaluationStore, bidOpportunityStore }) {
   const subscribers = new Set();
   const callbackSubscribers = new Set();
   const activeTasks = new Map();
@@ -517,6 +545,9 @@ function createTaskService({ aiService, agentService, autoConfirmationService, t
     if (definition.stateKey === 'evaluation') {
       return { evaluationPatch: state };
     }
+    if (definition.stateKey === 'bidOpportunity') {
+      return { bidOpportunityPatch: state };
+    }
     return {};
   }
 
@@ -536,6 +567,9 @@ function createTaskService({ aiService, agentService, autoConfirmationService, t
     }
     if (definition.stateKey === 'evaluation') {
       return { evaluation: evaluationStore.loadEvaluation() };
+    }
+    if (definition.stateKey === 'bidOpportunity') {
+      return { bidOpportunity: bidOpportunityStore.loadBidOpportunity() };
     }
     return {};
   }
@@ -645,6 +679,10 @@ function createTaskService({ aiService, agentService, autoConfirmationService, t
       evaluationStore.updateEvaluationWithoutReload(partial);
       return;
     }
+    if (definition.stateKey === 'bidOpportunity') {
+      bidOpportunityStore.updateBidOpportunityWithoutReload(partial);
+      return;
+    }
     technicalPlanStore.updateTechnicalPlanWithoutReload(partial);
   }
 
@@ -663,6 +701,9 @@ function createTaskService({ aiService, agentService, autoConfirmationService, t
     }
     if (definition.stateKey === 'evaluation') {
       return evaluationStore.loadEvaluation();
+    }
+    if (definition.stateKey === 'bidOpportunity') {
+      return bidOpportunityStore.loadBidOpportunity();
     }
     return technicalPlanStore.loadTechnicalPlan();
   }
@@ -897,7 +938,9 @@ function createTaskService({ aiService, agentService, autoConfirmationService, t
           ? feasibilityReportStore
           : definition.stateKey === 'evaluation'
             ? evaluationStore
-            : duplicateCheckStore;
+            : definition.stateKey === 'bidOpportunity'
+              ? bidOpportunityStore
+              : duplicateCheckStore;
     const runnerAiService = aiService?.withQueueScope ? aiService.withQueueScope(queueScopeId, taskControl.signal) : aiService;
     const agentTaskContextProvider = () => createAgentUserTaskContext(type, definition, payload, currentTask);
     const runnerAgentService = agentService.bindTaskContext(
@@ -970,6 +1013,21 @@ function createTaskService({ aiService, agentService, autoConfirmationService, t
       const definition = getTaskDefinition(type);
       const control = activeTaskControls.get(type);
       if (definition.group !== 'evaluation-check' || !isActiveTaskStatus(task.status) || !control?.cancel) continue;
+      if (typeFilter && !typeFilter.has(type)) continue;
+      controls.push(control);
+      control.cancel(reason);
+    }
+    await Promise.all(controls.map((control) => control.waitForSettlement()));
+  }
+
+  // 取消投标机会任务并等待退出，避免清空下游后旧任务继续提交 checkpoint。
+  async function cancelBidOpportunityTasks(reason, taskTypes) {
+    const typeFilter = Array.isArray(taskTypes) && taskTypes.length ? new Set(taskTypes) : null;
+    const controls = [];
+    for (const [type, task] of activeTasks.entries()) {
+      const definition = getTaskDefinition(type);
+      const control = activeTaskControls.get(type);
+      if (definition.group !== 'bid-opportunity' || !isActiveTaskStatus(task.status) || !control?.cancel) continue;
       if (typeFilter && !typeFilter.has(type)) continue;
       controls.push(control);
       control.cancel(reason);
@@ -1340,6 +1398,33 @@ function createTaskService({ aiService, agentService, autoConfirmationService, t
     evaluationStore.updateEvaluationWithoutReload(partial);
   }
 
+  function recoverInterruptedBidOpportunityTasks(state) {
+    if (!bidOpportunityStore) return;
+    const partial = {};
+
+    if (!activeTasks.has('bid-opportunity-parse') && isActiveTaskStatus(state.parseTask?.status)) {
+      const message = '上次公告解析未完成，请重新解析';
+      partial.parseTask = { ...state.parseTask, status: 'error', progress: 100, error: message, logs: [message], updated_at: now() };
+      partial.opportunities = Array.isArray(state.opportunities)
+        ? state.opportunities.map((item) => (item.parseStatus === 'running' ? { ...item, parseStatus: 'idle' } : item))
+        : state.opportunities;
+    }
+
+    if (!activeTasks.has('bid-opportunity-score') && isActiveTaskStatus(state.scoreTask?.status)) {
+      const message = '上次匹配评分未完成，请重新评分';
+      partial.scoreTask = { ...state.scoreTask, status: 'error', progress: 100, error: message, logs: [message], updated_at: now() };
+    }
+
+    if (!activeTasks.has('bid-opportunity-price') && isActiveTaskStatus(state.priceTask?.status)) {
+      const message = '上次报价预测未完成，请重新预测';
+      partial.priceTask = { ...state.priceTask, status: 'error', progress: 100, error: message, logs: [message], updated_at: now() };
+    }
+
+    if (Object.keys(partial).length) {
+      bidOpportunityStore.updateBidOpportunityWithoutReload(partial);
+    }
+  }
+
   function recoverInterruptedDuplicateCheckTask(state) {
     if (activeTasks.has('duplicate-analysis')) {
       return;
@@ -1426,6 +1511,7 @@ function createTaskService({ aiService, agentService, autoConfirmationService, t
   const duplicateCheckRecoveryState = duplicateCheckStore.loadDuplicateCheck() || {};
   const feasibilityReportRecoveryState = feasibilityReportStore?.loadFeasibilityReport?.() || {};
   const evaluationRecoveryState = evaluationStore?.loadEvaluation?.() || {};
+  const bidOpportunityRecoveryState = bidOpportunityStore?.loadBidOpportunity?.() || {};
   recoverInterruptedBidSectionExtractionTask(technicalPlanRecoveryState);
   recoverInterruptedBidAnalysisTask(technicalPlanRecoveryState);
   recoverInterruptedOutlineGenerationTask(technicalPlanRecoveryState);
@@ -1437,6 +1523,7 @@ function createTaskService({ aiService, agentService, autoConfirmationService, t
   recoverInterruptedDuplicateCheckTask(duplicateCheckRecoveryState);
   recoverInterruptedFeasibilityTasks(feasibilityReportRecoveryState);
   recoverInterruptedEvaluationTask(evaluationRecoveryState);
+  recoverInterruptedBidOpportunityTasks(bidOpportunityRecoveryState);
 
   return {
     subscribe,
@@ -1712,9 +1799,55 @@ function createTaskService({ aiService, agentService, autoConfirmationService, t
         beforeCommit: () => cancelEvaluationTasks('评分标准与正文已更新，后台任务已取消'),
       });
     },
+    importBidOpportunityFromTechnicalPlan() {
+      return bidOpportunityStore.importFromTechnicalPlan({
+        beforeCommit: () => cancelBidOpportunityTasks('公告已更新，后台任务已取消'),
+      });
+    },
     async resetEvaluation() {
       await cancelEvaluationTasks('AI评标已重置，后台任务已取消');
       return evaluationStore.clearEvaluation();
+    },
+    startBidOpportunityParse(payload) {
+      return startManagedTask('bid-opportunity-parse', payload, runBidOpportunityParseTask, payload?.workspaceState || {});
+    },
+    startBidOpportunityScore(payload) {
+      return startManagedTask('bid-opportunity-score', payload, runBidOpportunityScoreTask, payload?.workspaceState || {});
+    },
+    startBidOpportunityPrice(payload) {
+      return startManagedTask('bid-opportunity-price', payload, runBidOpportunityPriceTask, payload?.workspaceState || {});
+    },
+    importBidOpportunityAnnouncement() {
+      return bidOpportunityStore.importAnnouncement({
+        beforeCommit: () => cancelBidOpportunityTasks('公告已更新，后台任务已取消'),
+      });
+    },
+    createBidOpportunityAnnouncement(payload) {
+      return bidOpportunityStore.createAnnouncement(payload, {
+        beforeCommit: () => cancelBidOpportunityTasks('公告已更新，后台任务已取消'),
+      });
+    },
+    importBidOpportunityFromUrl(url) {
+      return bidOpportunityStore.importFromUrl(url, {
+        beforeCommit: () => cancelBidOpportunityTasks('公告已更新，后台任务已取消'),
+      });
+    },
+    updateBidOpportunityAnnouncement(payload) {
+      return bidOpportunityStore.updateAnnouncement(payload);
+    },
+    deleteBidOpportunityAnnouncement(payload) {
+      return bidOpportunityStore.deleteAnnouncement(payload?.opportunityId, {
+        beforeCommit: () => cancelBidOpportunityTasks('公告已更新，后台任务已取消'),
+      });
+    },
+    saveBidOpportunityEnterprise(payload) {
+      return bidOpportunityStore.saveEnterprise(payload, {
+        beforeCommit: () => cancelBidOpportunityTasks('企业画像已更新，后台任务已取消'),
+      });
+    },
+    async resetBidOpportunity() {
+      await cancelBidOpportunityTasks('投标机会已重置，后台任务已取消');
+      return bidOpportunityStore.clearBidOpportunity();
     },
     async resetFeasibilityReport() {
       await cancelFeasibilityReportTasks('可研报告已重置，后台任务已取消');

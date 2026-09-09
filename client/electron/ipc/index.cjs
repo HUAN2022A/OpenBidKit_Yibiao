@@ -7,6 +7,7 @@ const { registerDeveloperIpc } = require('./developerIpc.cjs');
 const { registerDonationIpc } = require('./donationIpc.cjs');
 const { registerDuplicateCheckIpc } = require('./duplicateCheckIpc.cjs');
 const { registerEvaluationIpc } = require('./evaluationIpc.cjs');
+const { registerBidOpportunityIpc } = require('./bidOpportunityIpc.cjs');
 const { registerExportIpc } = require('./exportIpc.cjs');
 const { registerFileIpc } = require('./fileIpc.cjs');
 const { registerKnowledgeBaseIpc } = require('./knowledgeBaseIpc.cjs');
@@ -35,6 +36,7 @@ const { createKnowledgeBaseStore } = require('../services/knowledgeBaseStore.cjs
 const { createLicenseService } = require('../services/licenseService.cjs');
 const { createRejectionCheckStore } = require('../services/rejectionCheckStore.cjs');
 const { createEvaluationStore } = require('../services/evaluationStore.cjs');
+const { createBidOpportunityStore } = require('../services/bidOpportunityStore.cjs');
 const { createSqliteDatabase } = require('../services/sqliteDatabase.cjs');
 const { createSystemFontService } = require('../services/systemFontService.cjs');
 const { clearOrphanedGeneratedImages, clearStalePiTaskArchives, runHistoricalStorageCleanup } = require('../services/storageCleanupService.cjs');
@@ -169,6 +171,20 @@ const workspaceDatabaseChannels = [
   'evaluation:export-excel',
   'evaluation:clear',
   'tasks:start-evaluation-run',
+  'bid-opportunity:load-state',
+  'bid-opportunity:read-announcement',
+  'bid-opportunity:save-ui-state',
+  'bid-opportunity:import-announcement',
+  'bid-opportunity:create-announcement',
+  'bid-opportunity:update-announcement',
+  'bid-opportunity:delete-announcement',
+  'bid-opportunity:save-enterprise',
+  'bid-opportunity:clear',
+  'bid-opportunity:import-from-technical-plan',
+  'bid-opportunity:import-from-url',
+  'tasks:start-bid-opportunity-parse',
+  'tasks:start-bid-opportunity-score',
+  'tasks:start-bid-opportunity-price',
   'knowledge-base:list',
   'knowledge-base:search',
   'knowledge-base:list-image-items',
@@ -277,6 +293,7 @@ function registerWorkspaceDatabaseServices({ app, configStore, aiService, agentS
   const duplicateCheckStore = createDuplicateCheckStore({ app, db: sqliteDatabase.db, taskLogStore });
   const rejectionCheckStore = createRejectionCheckStore({ app, db: sqliteDatabase.db, fileService, technicalPlanStore, taskLogStore });
   const evaluationStore = createEvaluationStore({ app, db: sqliteDatabase.db, technicalPlanStore, taskLogStore });
+  const bidOpportunityStore = createBidOpportunityStore({ app, db: sqliteDatabase.db, fileService, taskLogStore, technicalPlanStore });
   const templateStore = createTemplateStore({ db: sqliteDatabase.db });
   const duplicateCheckService = createDuplicateCheckService({ app, configStore, workspaceStore: duplicateCheckStore });
   const checkResultExportService = createCheckResultExportService({
@@ -286,7 +303,7 @@ function registerWorkspaceDatabaseServices({ app, configStore, aiService, agentS
     duplicateCheckStore,
     evaluationStore,
   });
-  const taskService = createTaskService({ aiService, agentService, autoConfirmationService, technicalPlanStore, rejectionCheckStore, duplicateCheckStore, feasibilityReportStore, knowledgeBaseService, duplicateCheckService, openXmlHelperService, evaluationStore });
+  const taskService = createTaskService({ aiService, agentService, autoConfirmationService, technicalPlanStore, rejectionCheckStore, duplicateCheckStore, feasibilityReportStore, knowledgeBaseService, duplicateCheckService, openXmlHelperService, evaluationStore, bidOpportunityStore });
   const agentWorkspaceService = createAgentWorkspaceService({ agentService, taskService, technicalPlanStore, feasibilityReportStore });
   agentWorkspaceServiceRef = agentWorkspaceService;
   technicalPlanStore.setAgentWorkspaceChangeListener(() => agentWorkspaceService.emitWorkspacesChanged());
@@ -302,6 +319,7 @@ function registerWorkspaceDatabaseServices({ app, configStore, aiService, agentS
   registerDuplicateCheckIpc({ duplicateCheckStore, checkResultExportService });
   registerRejectionCheckIpc({ rejectionCheckStore, taskService, checkResultExportService });
   registerEvaluationIpc({ evaluationStore, taskService, checkResultExportService });
+  registerBidOpportunityIpc({ bidOpportunityStore, taskService });
   registerTemplateIpc({ templateStore, aiService, configStore });
   registerTaskIpc({ taskService });
   updateStatus({ phase: 'ready', ready: true, message: '本地数据库已就绪' });

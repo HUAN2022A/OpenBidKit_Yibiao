@@ -21,7 +21,7 @@ export interface TaskEventTask {
   stats?: unknown;
 }
 
-export interface TaskEvent<TState = unknown, TRejectionCheckState = unknown, TDuplicateCheckState = unknown, TEvaluationState = unknown> {
+export interface TaskEvent<TState = unknown, TRejectionCheckState = unknown, TDuplicateCheckState = unknown, TEvaluationState = unknown, TBidOpportunityState = unknown> {
   task: TaskEventTask;
   technicalPlan?: TState;
   technicalPlanPatch?: Partial<TechnicalPlanState>;
@@ -37,6 +37,8 @@ export interface TaskEvent<TState = unknown, TRejectionCheckState = unknown, TDu
   feasibilityReportPatch?: Partial<FeasibilityReportState>;
   evaluation?: TEvaluationState;
   evaluationPatch?: EvaluationWorkspacePatch;
+  bidOpportunity?: TBidOpportunityState;
+  bidOpportunityPatch?: BidOpportunityWorkspacePatch;
 }
 
 export interface WordExportProgressEvent {
@@ -129,6 +131,137 @@ export interface EvaluationWorkspaceState {
 }
 
 export type EvaluationWorkspacePatch = Partial<EvaluationWorkspaceState>;
+
+export type BidOpportunityStatus = 'new' | 'screening' | 'following' | 'bidding' | 'abandoned';
+
+export type BidOpportunityParseStatus = 'idle' | 'running' | 'success' | 'error';
+
+export type BidOpportunityRecommendation = 'bid' | 'evaluate' | 'skip';
+
+export interface EnterpriseProfile {
+  companyName: string;
+  industry: string;
+  regions: string[];
+  strengths: string;
+}
+
+export interface BidOpportunityQualification {
+  id: string;
+  name: string;
+  level: string;
+  certNo: string;
+  validUntil: string;
+  sortOrder: number;
+}
+
+export interface BidOpportunityPerformance {
+  id: string;
+  projectName: string;
+  industry: string;
+  region: string;
+  amount: string;
+  completedAt: string;
+  description: string;
+  sortOrder: number;
+}
+
+export interface BidOpportunityKeyDate {
+  label: string;
+  date: string;
+}
+
+export interface BidOpportunityStructured {
+  projectName: string;
+  tenderer: string;
+  budget: string;
+  region: string;
+  deadline: string;
+  qualificationRequirements: string;
+  performanceRequirements: string;
+  scoringMethod: string;
+}
+
+export interface BidOpportunityScoreDimension {
+  key: string;
+  label: string;
+  score: number;
+  note: string;
+}
+
+export interface BidOpportunityScoreResult {
+  dimensions: BidOpportunityScoreDimension[];
+  totalScore: number;
+}
+
+export interface BidOpportunityCompetitorPrediction {
+  id: string;
+  name: string;
+  confidence: 'high' | 'medium' | 'low';
+  predictedPrice: string;
+  predictedPriceRange: string;
+  rationale: string;
+}
+
+export interface BidOpportunityPricePrediction {
+  status: 'idle' | 'running' | 'success' | 'error';
+  recommendedPrice: string;
+  recommendedPriceRange: string;
+  strategy: string;
+  winProbability: string;
+  competitors: BidOpportunityCompetitorPrediction[];
+  overallComment: string;
+  error?: string;
+  updatedAt?: string;
+}
+
+export interface BidOpportunity {
+  id: string;
+  title: string;
+  source: 'manual' | 'upload' | 'url';
+  status: BidOpportunityStatus;
+  rawHash: string;
+  rawChars: number;
+  parseStatus: BidOpportunityParseStatus;
+  structured: BidOpportunityStructured | null;
+  score: BidOpportunityScoreResult | null;
+  pricePrediction: BidOpportunityPricePrediction | null;
+  analysisText: string;
+  recommendation: BidOpportunityRecommendation | null;
+  tenderer: string;
+  region: string;
+  budgetText: string;
+  deadlineText: string;
+  owner: string;
+  conclusion: string;
+  keyDates: BidOpportunityKeyDate[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface BidOpportunityBackgroundTaskState {
+  task_id: string;
+  type: 'bid-opportunity-parse' | 'bid-opportunity-score' | 'bid-opportunity-price';
+  status: string;
+  progress: number;
+  logs: string[];
+  started_at?: string;
+  updated_at?: string;
+  error?: string;
+}
+
+export interface BidOpportunityWorkspaceState {
+  enterprise: EnterpriseProfile;
+  qualifications: BidOpportunityQualification[];
+  performances: BidOpportunityPerformance[];
+  opportunities: BidOpportunity[];
+  activeOpportunityId: string | null;
+  activeTab: 'opportunities' | 'enterprise';
+  parseTask?: BidOpportunityBackgroundTaskState;
+  scoreTask?: BidOpportunityBackgroundTaskState;
+  priceTask?: BidOpportunityBackgroundTaskState;
+}
+
+export type BidOpportunityWorkspacePatch = Partial<BidOpportunityWorkspaceState>;
 
 export type TemplateWordConfidenceSource = 'rule' | 'ai' | 'default';
 
@@ -841,6 +974,19 @@ export interface YibiaoBridge {
     exportExcel: (request: { inputSignature: string }) => Promise<CheckResultExportResult>;
     clear: () => Promise<{ success: boolean; message?: string }>;
   };
+  bidOpportunity: {
+    loadState: () => Promise<BidOpportunityWorkspaceState>;
+    readAnnouncement: (opportunityId: string) => Promise<string>;
+    saveUiState: (payload: Partial<BidOpportunityWorkspaceState>) => Promise<void>;
+    importAnnouncement: () => Promise<{ success: boolean; message?: string; opportunityId?: string }>;
+    importFromTechnicalPlan: () => Promise<{ success: boolean; message?: string; opportunityIds?: string[] }>;
+    importFromUrl: (url: string) => Promise<{ success: boolean; message?: string; opportunityId?: string }>;
+    createAnnouncement: (payload: { rawText: string; title?: string }) => Promise<{ success: boolean; message?: string; opportunityId?: string }>;
+    updateAnnouncement: (payload: { opportunityId: string; status?: BidOpportunityStatus; owner?: string; conclusion?: string; keyDates?: BidOpportunityKeyDate[] }) => Promise<{ success: boolean; message?: string }>;
+    deleteAnnouncement: (payload: { opportunityId: string }) => Promise<{ success: boolean; message?: string }>;
+    saveEnterprise: (payload: { enterprise: EnterpriseProfile; qualifications: BidOpportunityQualification[]; performances: BidOpportunityPerformance[] }) => Promise<{ success: boolean; message?: string }>;
+    clear: () => Promise<{ success: boolean; message?: string }>;
+  };
   templates: {
     list: () => Promise<ExportTemplateRecord[]>;
     get: (templateId: string) => Promise<ExportTemplateRecord | null>;
@@ -860,6 +1006,9 @@ export interface YibiaoBridge {
     startRejectionItemsExtraction: (payload: unknown) => Promise<unknown>;
     startRejectionCheck: (payload: unknown) => Promise<unknown>;
     startEvaluation: (payload: unknown) => Promise<unknown>;
+    startBidOpportunityParse: (payload: unknown) => Promise<unknown>;
+    startBidOpportunityScore: (payload: unknown) => Promise<unknown>;
+    startBidOpportunityPrice: (payload: unknown) => Promise<unknown>;
     startDuplicateAnalysis: (payload: unknown) => Promise<unknown>;
     startFeasibilityAnalysis: (payload?: unknown) => Promise<unknown>;
     startFeasibilityOutline: (payload?: unknown) => Promise<unknown>;
@@ -868,7 +1017,7 @@ export interface YibiaoBridge {
     pauseFeasibilityContent: () => Promise<unknown>;
     startFeasibilityHumanWriting: (payload?: unknown) => Promise<unknown>;
     getActiveTasks: () => Promise<TaskEventTask[]>;
-    onTaskEvent: <TState = unknown, TRejectionCheckState = unknown, TDuplicateCheckState = unknown, TEvaluationState = unknown>(callback: (event: TaskEvent<TState, TRejectionCheckState, TDuplicateCheckState, TEvaluationState>) => void) => () => void;
+    onTaskEvent: <TState = unknown, TRejectionCheckState = unknown, TDuplicateCheckState = unknown, TEvaluationState = unknown, TBidOpportunityState = unknown>(callback: (event: TaskEvent<TState, TRejectionCheckState, TDuplicateCheckState, TEvaluationState, TBidOpportunityState>) => void) => () => void;
   };
   export: {
     exportWord: (payload: unknown) => Promise<WordExportResult>;

@@ -6,6 +6,9 @@ const AdmZip = require('adm-zip');
 const { formatDocumentParseError, isLibreOfficeMissingError, normalizeDocumentParseError } = require('./documentParseErrors.cjs');
 const { compactLogError, createDeveloperLogger, textMetrics } = require('../utils/developerLog.cjs');
 const { getImportedImagesDir } = require('../utils/paths.cjs');
+const cheerio = require('cheerio');
+const TurndownService = require('turndown');
+const { gfm } = require('turndown-plugin-gfm');
 
 const parserLabels = {
   local: '本地解析',
@@ -610,6 +613,61 @@ async function parseDocumentWithConfig(app, filePath, config, options = {}) {
 }
 
 function createFileService({ app, configStore } = {}) {
+  async function fetchWebPageMarkdown(url) {
+    const raw = String(url || '').trim();
+    let parsed;
+    try {
+      parsed = new URL(raw);
+    } catch {
+      return { success: false, message: '无效的链接' };
+    }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return { success: false, message: '仅支持 http/https 链接' };
+    }
+    if (configStore && configStore.load && configStore.load().offline_mode === true) {
+      return { success: false, message: '当前处于离线模式，无法抓取在线公告' };
+    }
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+    try {
+      const response = await fetch(parsed.toString(), { signal: controller.signal });
+      if (!response.ok) {
+        return { success: false, message: '网页请求失败（HTTP ' + response.status + '）' };
+      }
+      const buffer = Buffer.from(await response.arrayBuffer());
+      if (buffer.length > 8 * 1024 * 1024) {
+        return { success: false, message: '网页内容过大，无法导入' };
+      }
+      const html = buffer.toString('utf-8');
+      const $ = cheerio.load(html);
+      const title = $('title').text().trim();
+      $('script, style, noscript, iframe, nav, footer, header, aside, form').remove();
+      let markdown = '';
+      try {
+        const turndownService = new TurndownService({ bulletListMarker: '-', codeBlockStyle: 'fenced', headingStyle: 'atx' });
+        turndownService.use(gfm);
+        markdown = turndownService.turndown($('body').html() || '');
+      } catch {
+        markdown = '';
+      }
+      if (!markdown || !markdown.trim()) {
+        markdown = $('body').text() || '';
+      }
+      markdown = String(markdown || '').trim();
+      if (!markdown) {
+        return { success: false, message: '未从网页提取到正文内容' };
+      }
+      return { success: true, markdown, title };
+    } catch (error) {
+      const message = error && error.name === 'AbortError'
+        ? '网页抓取超时'
+        : '网页抓取失败：' + (error && error.message ? error.message : String(error));
+      return { success: false, message };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
   /** 拖拽上传等场景直接给定文件路径时跳过系统选择弹窗 */
   function normalizeProvidedFilePaths(filePaths) {
     if (!Array.isArray(filePaths)) return [];
@@ -709,6 +767,8 @@ const config = configStore ? configStore.load() : { components: { file_parser: {
     persistTenderSourceDocx,
 
     importTechnicalPlanDocument,
+
+    fetchWebPageMarkdown,
 
     async importRejectionCheckDocument(role = 'tender', filePaths) {
       const documentRole = role === 'bid' ? 'bid' : 'tender';
