@@ -1,11 +1,5 @@
 import type { AppMenuItem, SectionId } from '../shared/types/navigation';
 
-const githubStarNotice = {
-  message: '正在开发中，在github给作者点个star，可以加速开发。',
-  actionLabel: '点此直达',
-  externalUrl: 'https://github.com/FB208/OpenBidKit_Yibiao',
-};
-
 export const appMenuItems: AppMenuItem[] = [
   {
     id: 'bid-generation',
@@ -30,13 +24,6 @@ export const appMenuItems: AppMenuItem[] = [
         description: '根据项目资料编制可行性研究报告',
         icon: 'document',
         badge: 'Beta',
-      },
-      {
-        id: 'business-bid',
-        label: '商务标',
-        description: '整理商务响应、报价口径和合同偏离材料。',
-        icon: 'briefcase',
-        notice: githubStarNotice,
       },
     ],
   },
@@ -106,18 +93,27 @@ export const appMenuItems: AppMenuItem[] = [
   {
     id: 'bid-opportunity',
     label: '投标机会',
-    description: '机会发现与线索跟踪',
-    notice: githubStarNotice,
-  },
-  {
-    id: 'plugin-manager',
-    label: '插件管理',
-    description: '安装和管理插件，扩展软件功能',
-  },
-  {
-    id: 'resources',
-    label: '资源下载',
-    description: '投标相关资料、工具下载',
+    description: '机会发现、报价预测与企业画像',
+    children: [
+      {
+        id: 'bid-opportunity-discovery',
+        label: '机会发现',
+        description: '发现招标机会、解析公告、匹配评分与线索跟踪',
+        icon: 'compare',
+      },
+      {
+        id: 'bid-opportunity-price',
+        label: '报价预测',
+        description: '预测对手报价并给出报价建议',
+        icon: 'tool',
+      },
+      {
+        id: 'bid-opportunity-enterprise',
+        label: '企业画像',
+        description: '维护企业资质、历史业绩与基本信息',
+        icon: 'briefcase',
+      },
+    ],
   },
 ];
 

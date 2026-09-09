@@ -2,8 +2,8 @@ import { useState } from 'react';
 import type { InputHTMLAttributes, ReactNode } from 'react';
 
 export interface InputWithActionProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'className'> {
-  actionLabel: ReactNode;
-  onAction: () => void;
+  actionLabel?: ReactNode;
+  onAction?: () => void;
   actionDisabled?: boolean;
   actionTitle?: string;
   className?: string;
@@ -51,15 +51,17 @@ function InputWithAction({
           </svg>
         </button>
       )}
-      <button
-        type="button"
-        className="input-with-action-button"
-        onClick={onAction}
-        disabled={actionDisabled}
-        title={actionTitle}
-      >
-        {actionLabel}
-      </button>
+      {onAction && (
+        <button
+          type="button"
+          className="input-with-action-button"
+          onClick={onAction}
+          disabled={actionDisabled}
+          title={actionTitle}
+        >
+          {actionLabel}
+        </button>
+      )}
     </div>
   );
 }

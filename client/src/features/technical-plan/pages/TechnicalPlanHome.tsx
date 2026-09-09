@@ -1281,6 +1281,26 @@ function TechnicalPlanHome({ workflowKind, registerLeaveGuard, onSectionChange }
       },
     ];
 
+  const handleSinkToBidOpportunity = async () => {
+    try {
+      const bridge = window.yibiao as unknown as { bidOpportunity?: { importFromTechnicalPlan: () => Promise<{ success: boolean; message?: string; opportunityIds?: string[] }> } };
+      const api = bridge?.bidOpportunity;
+      if (!api) {
+        showToast('投标机会接口尚未加载，请重启应用后重试', 'error');
+        return;
+      }
+      const result = await api.importFromTechnicalPlan();
+      if (!result?.success) {
+        showToast(result?.message || '沉淀失败', 'info');
+        return;
+      }
+      showToast(result.message || '已沉淀为投标机会', 'success');
+      onSectionChange?.('bid-opportunity');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : '沉淀失败', 'error');
+    }
+  };
+
   const toolbarGroups = [
     {
       id: 'technical-plan-reset',
@@ -1315,6 +1335,16 @@ function TechnicalPlanHome({ workflowKind, registerLeaveGuard, onSectionChange }
           onClick: () => { void handleAiAdjustClick(); },
         },
       ],
+    }] : []),
+    ...((state.tenderFiles?.length || state.tenderFile) ? [{
+      id: 'technical-plan-sink-opportunity',
+      actions: [{
+        id: 'sink-opportunity',
+        label: '沉淀为投标机会',
+        variant: 'secondary' as const,
+        tooltip: '把当前技术方案的招标文件沉淀成投标机会',
+        onClick: () => { void handleSinkToBidOpportunity(); },
+      }],
     }] : []),
     {
       id: 'technical-plan-navigation',

@@ -1,0 +1,581 @@
+/* [bid-opportunity] 投标机会（BidOpportunityPage.tsx） */
+
+.bid-opportunity-page {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  overflow: hidden;
+}
+
+.bid-opportunity-command-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid var(--yb-border-soft);
+  border-radius: var(--yb-radius-lg);
+  box-shadow: var(--yb-shadow-sm);
+}
+
+.bid-opportunity-command-bar > div:first-child {
+  min-width: 0;
+}
+
+.bid-opportunity-command-bar strong {
+  display: block;
+  color: var(--yb-text);
+  font-size: 17px;
+}
+
+.bid-opportunity-command-bar p {
+  margin: 2px 0 0;
+  color: var(--yb-text-muted);
+  font-size: 12px;
+}
+
+.bid-opportunity-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  background: var(--yb-border-soft);
+  border-radius: var(--yb-radius-pill);
+  flex-shrink: 0;
+}
+
+.bid-opportunity-tab {
+  padding: 6px 14px;
+  border-radius: var(--yb-radius-pill);
+  color: var(--yb-text-soft);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color var(--yb-duration-fast) var(--yb-ease), background var(--yb-duration-fast) var(--yb-ease);
+}
+
+.bid-opportunity-tab.is-active {
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--yb-primary), var(--yb-violet));
+  box-shadow: 0 6px 16px rgba(33, 116, 253, 0.22);
+}
+
+.bid-opportunity-workspace {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 12px;
+  overflow: hidden;
+}
+
+.bid-opportunity-list-panel,
+.bid-opportunity-detail {
+  min-height: 0;
+  overflow-y: auto;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid var(--yb-border-soft);
+  border-radius: var(--yb-radius-lg);
+  box-shadow: var(--yb-shadow-sm);
+  padding: 14px;
+}
+
+.bid-opportunity-panel {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid var(--yb-border-soft);
+  border-radius: var(--yb-radius-lg);
+  box-shadow: var(--yb-shadow-xs);
+  padding: 14px;
+}
+
+.bid-opportunity-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.bid-opportunity-panel-head h3 {
+  margin: 2px 0 0;
+  color: var(--yb-text);
+  font-size: 15px;
+}
+
+.bid-opportunity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bid-opportunity-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+  background: var(--yb-bg);
+  border: 1px solid var(--yb-border-soft);
+  border-radius: var(--yb-radius-md);
+  cursor: pointer;
+  transition: border-color var(--yb-duration-fast) var(--yb-ease), box-shadow var(--yb-duration-fast) var(--yb-ease);
+}
+
+.bid-opportunity-item:hover {
+  border-color: var(--yb-border);
+}
+
+.bid-opportunity-item.is-active {
+  border-color: var(--yb-primary);
+  box-shadow: 0 0 0 2px rgba(33, 116, 253, 0.14);
+}
+
+.bid-opportunity-item strong {
+  color: var(--yb-text);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bid-opportunity-item > span {
+  color: var(--yb-text-soft);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bid-opportunity-item small {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.status-badge,
+.score-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: var(--yb-radius-pill);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.status-badge.is-new { color: var(--yb-text-soft); background: var(--yb-border-soft); }
+.status-badge.is-screening { color: var(--yb-warning-deep); background: var(--yb-warning-soft); }
+.status-badge.is-following { color: var(--yb-primary-deep); background: rgba(33, 116, 253, 0.1); }
+.status-badge.is-bidding { color: var(--yb-success-deep); background: var(--yb-success-soft); }
+.status-badge.is-abandoned { color: var(--yb-text-muted); background: var(--yb-border-soft); }
+
+.score-badge {
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--yb-primary), var(--yb-violet));
+}
+
+.bid-opportunity-empty-list,
+.bid-opportunity-empty-detail,
+.bid-opportunity-empty {
+  color: var(--yb-text-muted);
+  font-size: 13px;
+  text-align: center;
+  padding: 24px 12px;
+}
+
+.bid-opportunity-empty-list strong,
+.bid-opportunity-empty-detail strong,
+.bid-opportunity-empty strong {
+  display: block;
+  color: var(--yb-text);
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.bid-opportunity-empty-detail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px dashed var(--yb-border);
+  border-radius: var(--yb-radius-lg);
+}
+
+.bid-opportunity-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bid-opportunity-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.bid-opportunity-detail-head h3 {
+  margin: 2px 0 0;
+  color: var(--yb-text);
+  font-size: 18px;
+}
+
+.bid-opportunity-detail-head p {
+  margin: 2px 0 0;
+  color: var(--yb-text-muted);
+  font-size: 12px;
+}
+
+.bid-opportunity-detail-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.bid-opportunity-detail-actions select {
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--yb-border);
+  border-radius: var(--yb-radius-sm);
+  background: var(--yb-surface);
+  color: var(--yb-text);
+  font-size: 13px;
+}
+
+.bid-opportunity-detail-command {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.parse-status-text {
+  color: var(--yb-text-soft);
+  font-size: 12px;
+}
+
+.structured-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.structured-grid > div {
+  padding: 8px 10px;
+  background: var(--yb-bg);
+  border-radius: var(--yb-radius-sm);
+}
+
+.structured-grid dt {
+  color: var(--yb-text-muted);
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+
+.structured-grid dd {
+  margin: 0;
+  color: var(--yb-text);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.bid-opportunity-score-total {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.bid-opportunity-score-total strong {
+  color: var(--yb-primary);
+  font-size: 30px;
+  line-height: 1;
+}
+
+.bid-opportunity-score-total span {
+  color: var(--yb-text-muted);
+  font-size: 11px;
+}
+
+.bid-opportunity-score-total em {
+  margin-top: 4px;
+  padding: 1px 10px;
+  border-radius: var(--yb-radius-pill);
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--yb-primary), var(--yb-violet));
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.score-dimension-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.score-dimension-grid article {
+  padding: 10px;
+  background: var(--yb-bg);
+  border-radius: var(--yb-radius-sm);
+}
+
+.score-dimension-grid article > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+
+.score-dimension-grid strong {
+  color: var(--yb-text);
+  font-size: 13px;
+}
+
+.score-dimension-grid em {
+  color: var(--yb-primary);
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.score-dimension-grid p {
+  margin: 0;
+  color: var(--yb-text-soft);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.bid-opportunity-analysis {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--yb-border-soft);
+}
+
+.tracking-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.tracking-form-grid label,
+.bid-opportunity-create-form label,
+.enterprise-form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--yb-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tracking-form-grid input,
+.tracking-form-grid textarea,
+.bid-opportunity-create-form input,
+.bid-opportunity-create-form textarea,
+.enterprise-form-grid input,
+.enterprise-form-grid textarea,
+.tracking-date-row input,
+.qualification-row input,
+.performance-row input,
+.performance-row textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--yb-border);
+  border-radius: var(--yb-radius-sm);
+  background: var(--yb-surface);
+  color: var(--yb-text);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.tracking-form-grid textarea,
+.bid-opportunity-create-form textarea,
+.enterprise-form-grid textarea,
+.performance-row textarea {
+  resize: vertical;
+}
+
+.tracking-dates {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tracking-date-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.bid-opportunity-raw summary {
+  cursor: pointer;
+  color: var(--yb-text-soft);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.bid-opportunity-raw-body {
+  margin-top: 8px;
+  padding: 10px;
+  background: var(--yb-bg);
+  border-radius: var(--yb-radius-sm);
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.bid-opportunity-enterprise {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.enterprise-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.enterprise-form-span {
+  grid-column: 1 / -1;
+}
+
+.qualification-row,
+.performance-row {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--yb-border-soft);
+}
+
+.qualification-row {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  align-items: center;
+}
+
+.performance-row {
+  grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
+  align-items: start;
+}
+
+.performance-row textarea {
+  grid-column: 1 / -2;
+}
+
+.bid-opportunity-create-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.bid-opportunity-price {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bid-opportunity-price-recommend {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.bid-opportunity-price-recommend em {
+  color: var(--yb-text-muted);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.bid-opportunity-price-recommend strong {
+  color: var(--yb-primary);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.price-recommend-card {
+  padding: 12px;
+  background: var(--yb-bg);
+  border-radius: var(--yb-radius-md);
+}
+
+.price-competitor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.price-competitor-row {
+  padding: 12px;
+  background: var(--yb-bg);
+  border: 1px solid var(--yb-border-soft);
+  border-radius: var(--yb-radius-md);
+}
+
+.price-competitor-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.price-competitor-head strong {
+  color: var(--yb-text);
+  font-size: 14px;
+}
+
+.confidence-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: var(--yb-radius-pill);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.confidence-badge.is-high { color: var(--yb-success-deep); background: var(--yb-success-soft); }
+.confidence-badge.is-medium { color: var(--yb-warning-deep); background: var(--yb-warning-soft); }
+.confidence-badge.is-low { color: var(--yb-text-soft); background: var(--yb-border-soft); }
+
+.price-competitor-rationale {
+  margin: 8px 0 0;
+  color: var(--yb-text-soft);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.price-prediction-disclaimer {
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--yb-border-soft);
+  color: var(--yb-text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+@media (max-width: 1100px) {
+  .bid-opportunity-workspace {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+  .score-dimension-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

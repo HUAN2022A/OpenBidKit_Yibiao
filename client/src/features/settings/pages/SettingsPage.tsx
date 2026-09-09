@@ -91,13 +91,6 @@ const textProviderDefaults: Record<TextModelProvider, TextModelConfig> = {
   custom: { api_key: '', base_url: '', model_name: '', multimodal_enabled: false, reasoning_effort: '', context_length_limit: DEFAULT_TEXT_CONTEXT_LENGTH_LIMIT, concurrency_limit: DEFAULT_TEXT_CONCURRENCY_LIMIT, temperature_enabled: false, temperature: DEFAULT_TEXT_TEMPERATURE, request_mode: 'stream' },
 };
 
-const textProviderApiKeyUrls: Partial<Record<TextModelProvider, string>> = {
-  jinlong: 'https://s.markup.com.cn/jl',
-  volcengine: 'https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey',
-  deepseek: 'https://platform.deepseek.com/api_keys',
-  agnes: 'https://platform.agnes-ai.com/settings/apiKeys',
-};
-
 function createDefaultTextModelProfiles(): TextModelProfiles {
   return textModelProviders.reduce((profiles, provider) => ({
     ...profiles,
@@ -332,15 +325,6 @@ const imageProviderDefaults: ImageModelProfiles = {
     tested_at: '',
     last_error: '',
   },
-};
-
-const imageProviderApiKeyUrls: Record<ImageModelProvider, string> = {
-  jinlong: 'https://s.markup.com.cn/jl',
-  volcengine: 'https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey',
-  'google-ai-studio': 'https://aistudio.google.com/api-keys',
-  agnes: 'https://platform.agnes-ai.com/settings/apiKeys',
-  custom: '',
-  comfyui: '',
 };
 
 const imageProviderLabels: Record<ImageModelProvider, string> = {
@@ -1010,40 +994,6 @@ function SettingsPage({ onDeveloperModeChange }: SettingsPageProps) {
         },
       };
     });
-  };
-
-  const openTextProviderApiKeyPage = async () => {
-    const url = textProviderApiKeyUrls[state.textModel.provider];
-    if (!url) {
-      showToast('自定义服务商没有预置 API Key 获取页面', 'info');
-      return;
-    }
-
-    try {
-      const result = await window.yibiao?.openExternal(url);
-      if (result && !result.success) {
-        showToast(result.message || '打开 API Key 获取页面失败', 'error');
-      }
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : '打开 API Key 获取页面失败', 'error');
-    }
-  };
-
-  const openImageProviderApiKeyPage = async () => {
-    const url = imageProviderApiKeyUrls[state.imageModel.provider];
-    if (!url) {
-      showToast('自定义生图服务没有预置 API Key 获取页面', 'info');
-      return;
-    }
-
-    try {
-      const result = await window.yibiao?.openExternal(url);
-      if (result && !result.success) {
-        showToast(result.message || '打开生图服务 API Key 获取页面失败', 'error');
-      }
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : '打开生图服务 API Key 获取页面失败', 'error');
-    }
   };
 
   const testTextConfig = async () => {
@@ -1801,10 +1751,6 @@ function SettingsPage({ onDeveloperModeChange }: SettingsPageProps) {
                 value={state.textModel.api_key}
                 placeholder="请输入文本模型 API Key"
                 onChange={(event) => updateTextModelConfig({ api_key: event.target.value }, { clearModels: true })}
-                actionLabel="获取"
-                actionTitle="打开当前服务商的 API Key 获取页面"
-                actionDisabled={!textProviderApiKeyUrls[state.textModel.provider]}
-                onAction={() => { void openTextProviderApiKeyPage(); }}
               />
             </label>
             <label className="settings-row">
@@ -2005,9 +1951,6 @@ function SettingsPage({ onDeveloperModeChange }: SettingsPageProps) {
                 value={state.imageModel.api_key}
                 placeholder="请输入生图服务 API Key"
                 onChange={(event) => updateImageModelConfig({ api_key: event.target.value }, { clearModels: true })}
-                actionLabel="获取"
-                actionTitle="打开当前生图服务商的 API Key 获取页面"
-                onAction={() => { void openImageProviderApiKeyPage(); }}
               />
             </label>
             )}
@@ -2449,28 +2392,6 @@ function SettingsPage({ onDeveloperModeChange }: SettingsPageProps) {
             <article className="about-info-card about-links-card">
               <span>信息与授权</span>
               <ul className="about-links-list">
-                <li className="about-links-item">
-                  <span className="about-links-label">GitHub 仓库</span>
-                  <a
-                    className="about-links-value is-link"
-                    href="https://github.com/FB208/OpenBidKit_Yibiao"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    FB208/OpenBidKit_Yibiao
-                  </a>
-                </li>
-                <li className="about-links-item">
-                  <span className="about-links-label">使用文档</span>
-                  <a
-                    className="about-links-value is-link"
-                    href="https://wiki.agnet.top/"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    wiki.agnet.top
-                  </a>
-                </li>
                 <li className="about-links-item">
                   <span className="about-links-label">客户端授权状态</span>
                   <span className={`about-links-value ${licenseStatus?.sourceTrusted ? 'is-trusted' : 'is-untrusted'}`}>

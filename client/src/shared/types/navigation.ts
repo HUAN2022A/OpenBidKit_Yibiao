@@ -3,11 +3,9 @@ export type SectionId =
   | 'technical-plan'
   | 'existing-plan-expansion'
   | 'feasibility-report'
-  | 'business-bid'
   | 'knowledge-base'
   | 'document-knowledge-base'
   | 'image-knowledge-base'
-  | 'resources'
   | 'bid-check'
   | 'duplicate-check'
   | 'rejection-check'
@@ -17,6 +15,9 @@ export type SectionId =
   | 'new-template'
   | 'export-format'
   | 'bid-opportunity'
+  | 'bid-opportunity-discovery'
+  | 'bid-opportunity-price'
+  | 'bid-opportunity-enterprise'
   | 'developer-test'
   | 'developer-json-test'
   | 'developer-multimodal-test'
@@ -25,14 +26,7 @@ export type SectionId =
   | 'developer-export-preview'
   | 'developer-expansion-replace-test'
   | 'developer-agent-test'
-  | 'settings'
-  | 'plugin-manager';
-
-export interface AppMenuNotice {
-  message: string;
-  actionLabel?: string;
-  externalUrl?: string;
-}
+  | 'settings';
 
 export interface AppSubMenuItem {
   id: SectionId;
@@ -40,7 +34,6 @@ export interface AppSubMenuItem {
   description: string;
   icon?: 'document' | 'expand' | 'briefcase' | 'compare' | 'shield' | 'code' | 'prompt' | 'file' | 'export' | 'tool';
   badge?: string;
-  notice?: AppMenuNotice;
 }
 
 export interface AppMenuItem {
@@ -48,5 +41,4 @@ export interface AppMenuItem {
   label: string;
   description: string;
   children?: AppSubMenuItem[];
-  notice?: AppMenuNotice;
 }

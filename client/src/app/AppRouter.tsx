@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import type { SectionId } from '../shared/types/navigation';
 import { getAppMenuItemById } from './menuConfig';
 import BidOpportunityPage from '../features/bid-opportunity/pages/BidOpportunityPage';
-import BusinessBidPage from '../features/business-bid/pages/BusinessBidPage';
+import PricePredictionPage from '../features/bid-opportunity/pages/PricePredictionPage';
+import EnterpriseProfilePage from '../features/bid-opportunity/pages/EnterpriseProfilePage';
 import ContentExpansionReplaceTestPage from '../features/developer/pages/ContentExpansionReplaceTestPage';
 import DeveloperDemoPage, { isDeveloperDemoSection } from '../features/developer/pages/DeveloperDemoPage';
 import DeveloperMultimodalTestPage from '../features/developer/pages/DeveloperMultimodalTestPage';
@@ -15,8 +16,6 @@ import KnowledgeBasePage from '../features/knowledge-base/pages/KnowledgeBasePag
 import ImageKnowledgeBasePage from '../features/image-knowledge-base/pages/ImageKnowledgeBasePage';
 import RejectionCheckPage from '../features/rejection-check/pages/RejectionCheckPage';
 import EvaluationPage from '../features/ai-evaluation/pages/EvaluationPage';
-import ResourcesPage from '../features/resources/pages/ResourcesPage';
-import PluginsPage from '../features/plugins/pages/PluginsPage';
 import SettingsPage from '../features/settings/pages/SettingsPage';
 import TechnicalPlanHome from '../features/technical-plan/pages/TechnicalPlanHome';
 import FeasibilityReportHome from '../features/feasibility-report/pages/FeasibilityReportHome';
@@ -55,17 +54,11 @@ function AppRouter({ activeSection, developerMode, onDeveloperModeChange, onSect
       return <TechnicalPlanHome workflowKind="existing-plan-expansion" registerLeaveGuard={registerLeaveGuard} onSectionChange={onSectionChange} />;
     case 'feasibility-report':
       return <FeasibilityReportHome registerLeaveGuard={registerLeaveGuard} onSectionChange={onSectionChange} />;
-    case 'business-bid':
-      return <BusinessBidPage />;
     case 'document-knowledge-base':
       return <KnowledgeBasePage />;
     case 'image-knowledge-base':
       // 页面 prop 约定为 string；SectionId 是 string 的联合子集，桥接处收窄。
       return <ImageKnowledgeBasePage onSectionChange={(section) => onSectionChange(section as SectionId)} />;
-    case 'resources':
-      return <ResourcesPage />;
-    case 'plugin-manager':
-      return <PluginsPage />;
     case 'duplicate-check':
       return <DuplicateCheckPage />;
     case 'rejection-check':
@@ -80,8 +73,12 @@ function AppRouter({ activeSection, developerMode, onDeveloperModeChange, onSect
       return <ExportFormatPage mode="create" />;
     case 'export-format':
       return <ExportFormatPage mode="create" />;
-    case 'bid-opportunity':
+    case 'bid-opportunity-discovery':
       return <BidOpportunityPage />;
+    case 'bid-opportunity-price':
+      return <PricePredictionPage />;
+    case 'bid-opportunity-enterprise':
+      return <EnterpriseProfilePage />;
     case 'developer-test':
       return null;
     case 'developer-json-test':

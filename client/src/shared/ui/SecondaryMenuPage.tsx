@@ -1,5 +1,4 @@
 import type { AppMenuItem, AppSubMenuItem, SectionId } from '../types/navigation';
-import { useToast } from './ToastProvider';
 
 interface SecondaryMenuPageProps {
   menuItem: AppMenuItem;
@@ -8,24 +7,9 @@ interface SecondaryMenuPageProps {
 
 function SecondaryMenuPage({ menuItem, onNavigate }: SecondaryMenuPageProps) {
   const children = menuItem.children ?? [];
-  const { showToast } = useToast();
 
   const handleItemClick = (item: AppSubMenuItem) => {
-    if (!item.notice) {
-      onNavigate(item.id);
-      return;
-    }
-
-    showToast(item.notice.message, 'info', {
-      duration: 7000,
-      actions: item.notice.externalUrl ? [
-        {
-          label: item.notice.actionLabel || '打开链接',
-          variant: 'primary',
-          onClick: () => openExternalUrl(item.notice?.externalUrl || ''),
-        },
-      ] : undefined,
-    });
+    onNavigate(item.id);
   };
 
   return (
@@ -67,17 +51,6 @@ function SecondaryMenuPage({ menuItem, onNavigate }: SecondaryMenuPageProps) {
       </section>
     </div>
   );
-}
-
-async function openExternalUrl(url: string) {
-  if (!url) return;
-
-  if (window.yibiao?.openExternal) {
-    await window.yibiao.openExternal(url);
-    return;
-  }
-
-  window.open(url, '_blank', 'noopener,noreferrer');
 }
 
 function SubMenuIcon({ item }: { item: AppSubMenuItem }) {
