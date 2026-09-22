@@ -312,17 +312,14 @@ async function retrieveSimilarIllustrations({ planItems, sections, imageItems, a
   for (const planItem of items) {
     const label = `${singleLine(planItem?.item_id)}（${singleLine(planItem?.title) || '未命名配图'}）`;
 
-    // 规则先行：所在小节正文疑似含项目专有信息时直接禁止复用，不再进入语义匹配。
+    // 取当前小节正文用于 L2 语义匹配。安全校验只针对「候选历史图」的图注/上下文：下方
+    // cleanCandidates 先做规则扫描，L2 LLM 再用 sensitive 字段兜底。不能因当前小节正文
+    // 本身含项目专有名词就整体禁止复用——真实标书正文几乎必然包含客户名/金额/地址，
+    // 那样会在语义匹配之前把绝大多数小节拦下，复用形同虚设。
     const sectionText = resolveSectionTexts(planItem, sections);
     if (!sectionText) {
       stats.missed += 1;
       log(`配图复用：${label} 未取到小节正文，按原计划生成。`);
-      continue;
-    }
-    const sectionHit = findSensitiveRuleHit(sectionText);
-    if (sectionHit) {
-      stats.missed += 1;
-      log(`配图复用：${label} 所在小节正文疑似含${sectionHit.label}，禁止复用，按原计划生成。`);
       continue;
     }
 

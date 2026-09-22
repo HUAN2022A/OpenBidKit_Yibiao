@@ -765,7 +765,7 @@ function ContentEditPage({
   };
 
   const rerunIllustrations = async () => {
-    if (!contentIllustrationPlan || taskBlocksGeneration) {
+    if (!completedCount || taskBlocksGeneration) {
       return;
     }
 
@@ -1110,7 +1110,7 @@ function ContentEditPage({
               {contentIllustrationPlan && (
                 <button type="button" className="secondary-action" onClick={() => setIllustrationResultDialogOpen(true)} disabled={taskBlocksGeneration} title="查看每个配图位置是复用历史图还是新生成">查看配图结果</button>
               )}
-              {contentIllustrationPlan && (
+              {completedCount > 0 && (
                 <button
                   type="button"
                   className="secondary-action"

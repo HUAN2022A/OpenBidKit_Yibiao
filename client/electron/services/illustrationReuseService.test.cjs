@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { collectCandidatesByKeyword } = require('./illustrationReuseService.cjs');
+const { collectCandidatesByKeyword, retrieveSimilarIllustrations } = require('./illustrationReuseService.cjs');
 
 function imageItem(overrides = {}) {
   return {
@@ -54,4 +54,46 @@ test('优先复用：缺 id/title/asset_url 的条目被排除', () => {
   ]);
   assert.strictEqual(candidates.length, 1);
   assert.strictEqual(candidates[0].id, 'img-ok');
+});
+
+function mockAiService(decision) {
+  return { collectJsonResponse: async () => decision };
+}
+
+test('复用：当前小节正文含客户名/金额/地址时仍能走到语义匹配并复用', async () => {
+  const aiService = mockAiService({ reuse: true, reuse_item_id: 'img-org', confidence: 0.9, sensitive: false });
+  const planItems = [{ item_id: 'item-1', title: '组织架构图', image_type: '组织架构图', section_ids: ['1.1'] }];
+  const sections = { '1.1': { content: '本项目建设单位为华能集团有限公司，总投资约 5000 万元，位于创新产业园。' } };
+  const imageItems = [imageItem({ id: 'img-org', title: '组织架构图', resume: '各部门组织关系', image_type: '层级图' })];
+  const stats = await retrieveSimilarIllustrations({ planItems, sections, imageItems, aiService });
+  assert.strictEqual(stats.reused, 1);
+  assert.strictEqual(planItems[0].reuse_source.item_id, 'img-org');
+});
+
+test('复用：候选历史图图注含旧客户名时仍被拦截，走重新生成', async () => {
+  const aiService = mockAiService({ reuse: true, reuse_item_id: 'img-org', confidence: 0.9, sensitive: false });
+  const planItems = [{ item_id: 'item-1', title: '组织架构图', image_type: '组织架构图', section_ids: ['1.1'] }];
+  const sections = { '1.1': { content: '项目组织架构说明。' } };
+  const imageItems = [imageItem({ id: 'img-org', title: '华能集团组织架构图', resume: '华能集团各部门', image_type: '层级图' })];
+  const stats = await retrieveSimilarIllustrations({ planItems, sections, imageItems, aiService });
+  assert.strictEqual(stats.reused, 0);
+  assert.strictEqual(planItems[0].reuse_source, undefined);
+});
+
+test('复用：LLM 判定候选疑似含项目专有信息时不复用', async () => {
+  const aiService = mockAiService({ reuse: true, reuse_item_id: 'img-org', confidence: 0.95, sensitive: true });
+  const planItems = [{ item_id: 'item-1', title: '组织架构图', image_type: '组织架构图', section_ids: ['1.1'] }];
+  const sections = { '1.1': { content: '项目组织架构说明。' } };
+  const imageItems = [imageItem({ id: 'img-org', title: '组织架构图', resume: '各部门组织关系', image_type: '层级图' })];
+  const stats = await retrieveSimilarIllustrations({ planItems, sections, imageItems, aiService });
+  assert.strictEqual(stats.reused, 0);
+});
+
+test('复用：把握不足（confidence < 0.8）时不复用', async () => {
+  const aiService = mockAiService({ reuse: true, reuse_item_id: 'img-org', confidence: 0.5, sensitive: false });
+  const planItems = [{ item_id: 'item-1', title: '组织架构图', image_type: '组织架构图', section_ids: ['1.1'] }];
+  const sections = { '1.1': { content: '项目组织架构说明。' } };
+  const imageItems = [imageItem({ id: 'img-org', title: '组织架构图', resume: '各部门组织关系', image_type: '层级图' })];
+  const stats = await retrieveSimilarIllustrations({ planItems, sections, imageItems, aiService });
+  assert.strictEqual(stats.reused, 0);
 });
