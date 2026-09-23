@@ -98,6 +98,7 @@ export interface ClientConfig extends AiConfig {
   storage_cleanup_version?: number;
   analytics_client_id?: string;
   analytics_created_at?: string;
+  production_mode?: boolean;
 }
 
 export type ModelImageInputStatus = 'supported' | 'unsupported' | 'mixed' | 'unknown';

@@ -3,7 +3,7 @@ const path = require('node:path');
 const Database = require('better-sqlite3');
 const { getWorkspaceDatabasePath } = require('../utils/paths.cjs');
 
-const schemaVersion = 28;
+const schemaVersion = 29;
 
 function createInitialSchema(db) {
   db.exec(`
@@ -852,6 +852,58 @@ function addBidOpportunityPricePrediction(db) {
   addColumnIfMissing(db, 'bid_opportunities', 'price_prediction_json', 'TEXT');
 }
 
+function createBidImprovementSchema(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS bid_improvement_documents (
+      id TEXT PRIMARY KEY,
+      role TEXT NOT NULL,
+      file_name TEXT NOT NULL,
+      source_path TEXT,
+      content TEXT NOT NULL,
+      parser_label TEXT,
+      imported_at TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS bid_improvement_outline_nodes (
+      id TEXT PRIMARY KEY,
+      document_id TEXT NOT NULL,
+      parent_id TEXT,
+      title TEXT NOT NULL,
+      level INTEGER NOT NULL,
+      content TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (document_id) REFERENCES bid_improvement_documents(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_bid_improvement_outline_nodes_document
+    ON bid_improvement_outline_nodes(document_id);
+
+    CREATE INDEX IF NOT EXISTS idx_bid_improvement_outline_nodes_parent
+    ON bid_improvement_outline_nodes(parent_id);
+
+    CREATE INDEX IF NOT EXISTS idx_bid_improvement_outline_nodes_order
+    ON bid_improvement_outline_nodes(document_id, sort_order);
+
+    CREATE TABLE IF NOT EXISTS bid_improvement_polish_history (
+      id TEXT PRIMARY KEY,
+      node_id TEXT NOT NULL,
+      original_content TEXT NOT NULL,
+      polished_content TEXT NOT NULL,
+      polish_goal TEXT NOT NULL,
+      accepted INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (node_id) REFERENCES bid_improvement_outline_nodes(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_bid_improvement_polish_history_node
+    ON bid_improvement_polish_history(node_id, created_at DESC);
+  `);
+}
+
 function addColumnIfMissing(db, tableName, columnName, columnType) {
   if (!getExistingTables(db).has(tableName)) return;
   const columns = getExistingColumns(db, tableName);
@@ -1302,6 +1354,15 @@ const schemaHealthTableGroups = [
     ],
     repair: createBidOpportunitySchema,
   },
+  {
+    version: 29,
+    tables: [
+      'bid_improvement_documents',
+      'bid_improvement_outline_nodes',
+      'bid_improvement_polish_history',
+    ],
+    repair: createBidImprovementSchema,
+  },
 ];
 
 function removeKnowledgeMigrationMeta(db) {
@@ -1674,6 +1735,11 @@ const migrations = [
     version: 28,
     description: '投标机会报价预测',
     up: addBidOpportunityPricePrediction,
+  },
+  {
+    version: 29,
+    description: '标书改进',
+    up: createBidImprovementSchema,
   },
 ];
 

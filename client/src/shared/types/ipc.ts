@@ -5,6 +5,7 @@ import type { KnowledgeAnalysisSnapshot, KnowledgeBaseEvent, KnowledgeBaseIndex,
 import type { RejectionCheckWorkspacePatch, RejectionCheckWorkspaceState, RejectionDocumentRole } from '../../features/rejection-check/types';
 import type { BidAnalysisMode, BidAnalysisTaskState, BidSectionMode, ContentGenerationOptions, ContentGenerationPlanState, ContentGenerationProgressDetail, ContentGenerationRuntimeState, ContentGenerationSectionState, DetectedBidSection, GlobalFactGroupState, GlobalFactsMode, SaveOutlineRequest, SaveOutlineSelectionRequest, TechnicalPlanState, TechnicalPlanStep, TechnicalPlanWorkflowKind } from '../../features/technical-plan/types';
 import type { FeasibilityProjectInfo, FeasibilityReportState, FeasibilityReportStep, FeasibilitySaveOutlineRequest, FeasibilitySourceFile } from '../../features/feasibility-report/types';
+import type { BidImprovementDocument, BidImprovementOutlineNode, BidImprovementWorkspaceState, PolishHistoryItem } from '../../features/bid-improvement/types';
 import type { ExportFormatConfig, ExportTemplateRecord } from './exportFormat';
 import type { OutlineData, OutlineExpansionMode, OutlineMode, OutlineWordControlOptions } from './outline';
 
@@ -987,6 +988,22 @@ export interface YibiaoBridge {
     saveEnterprise: (payload: { enterprise: EnterpriseProfile; qualifications: BidOpportunityQualification[]; performances: BidOpportunityPerformance[] }) => Promise<{ success: boolean; message?: string }>;
     clear: () => Promise<{ success: boolean; message?: string }>;
   };
+  bidImprovement: {
+    importDocument: (filePath: string, role: 'bid' | 'tender') => Promise<{ success: boolean; documentId?: string; message?: string }>;
+    getDocument: (documentId: string) => Promise<BidImprovementDocument | null>;
+    getAllDocuments: () => Promise<BidImprovementDocument[]>;
+    deleteDocument: (documentId: string) => Promise<{ success: boolean }>;
+    getOutlineNodes: (documentId: string) => Promise<BidImprovementOutlineNode[]>;
+    updateNodeContent: (nodeId: string, content: string) => Promise<{ success: boolean }>;
+    getPolishHistory: (nodeId: string) => Promise<PolishHistoryItem[]>;
+    savePolishResult: (result: { nodeId: string; polishedContent: string; polishGoal: string; accepted: boolean }) => Promise<{ success: boolean }>;
+    getWorkspaceState: () => Promise<BidImprovementWorkspaceState>;
+    updateWorkspaceState: (patch: Partial<BidImprovementWorkspaceState>) => Promise<void>;
+    clear: () => Promise<{ success: boolean }>;
+    bridgeToRejectionCheck: (documentId: string) => Promise<{ success: boolean; message?: string }>;
+    bridgeToEvaluation: (documentId: string) => Promise<{ success: boolean; message?: string }>;
+    exportDocument: (documentId: string) => Promise<{ success: boolean; path?: string; message?: string }>;
+  };
   templates: {
     list: () => Promise<ExportTemplateRecord[]>;
     get: (templateId: string) => Promise<ExportTemplateRecord | null>;
@@ -1009,6 +1026,7 @@ export interface YibiaoBridge {
     startBidOpportunityParse: (payload: unknown) => Promise<unknown>;
     startBidOpportunityScore: (payload: unknown) => Promise<unknown>;
     startBidOpportunityPrice: (payload: unknown) => Promise<unknown>;
+    startBidImprovementPolish: (payload: unknown) => Promise<unknown>;
     startDuplicateAnalysis: (payload: unknown) => Promise<unknown>;
     startFeasibilityAnalysis: (payload?: unknown) => Promise<unknown>;
     startFeasibilityOutline: (payload?: unknown) => Promise<unknown>;

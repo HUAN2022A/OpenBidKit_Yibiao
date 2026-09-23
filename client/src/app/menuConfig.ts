@@ -1,5 +1,73 @@
 import type { AppMenuItem, SectionId } from '../shared/types/navigation';
 
+// 生产模式下只展示核心功能的菜单配置
+export const productionMenuItems: AppMenuItem[] = [
+  {
+    id: 'existing-plan-expansion',
+    label: '方案扩写',
+    description: '优化和扩充已有技术方案，遵从原方案真实可落地，又能扩写出厚厚的标书',
+    children: [],
+  },
+  {
+    id: 'bid-check',
+    label: '标书检查',
+    description: '查重、废标项与合规检查',
+    children: [
+      {
+        id: 'duplicate-check',
+        label: '标书查重',
+        description: '相似度与重复表达检测',
+        icon: 'compare',
+      },
+      {
+        id: 'rejection-check',
+        label: '废标项检查',
+        description: '硬性条款与响应完整性',
+        icon: 'shield',
+      },
+      {
+        id: 'bid-improvement',
+        label: '标书润色',
+        description: '导入已完成标书，按目录编辑和 AI 润色优化',
+        icon: 'edit',
+      },
+    ],
+  },
+  {
+    id: 'knowledge-base',
+    label: '知识库',
+    description: '素材、模板和案例资产',
+    children: [
+      {
+        id: 'document-knowledge-base',
+        label: '文档知识库',
+        description: '管理文档资料、案例素材和可复用知识条目',
+        icon: 'document',
+      },
+    ],
+  },
+  {
+    id: 'template-settings',
+    label: '模版设置',
+    description: '标书导出模板与排版配置',
+    children: [
+      {
+        id: 'my-templates',
+        label: '我的模板',
+        description: '管理已保存的标书导出模板',
+        icon: 'document',
+      },
+      {
+        id: 'new-template',
+        label: '新建模板',
+        description: '配置 Word 文档排版与编号格式',
+        icon: 'export',
+      },
+    ],
+  },
+];
+
+// 完整开发模式的菜单配置
 export const appMenuItems: AppMenuItem[] = [
   {
     id: 'bid-generation',
@@ -83,35 +151,16 @@ export const appMenuItems: AppMenuItem[] = [
         icon: 'shield',
       },
       {
+        id: 'bid-improvement',
+        label: '标书润色',
+        description: '导入已完成标书，按目录编辑和 AI 润色优化',
+        icon: 'edit',
+      },
+      {
         id: 'ai-evaluation',
         label: 'AI评标',
         description: '模拟AI评标，对标书进行打分，出具评标报告',
         icon: 'tool',
-      },
-    ],
-  },
-  {
-    id: 'bid-opportunity',
-    label: '投标机会',
-    description: '机会发现、报价预测与企业画像',
-    children: [
-      {
-        id: 'bid-opportunity-discovery',
-        label: '机会发现',
-        description: '发现招标机会、解析公告、匹配评分与线索跟踪',
-        icon: 'compare',
-      },
-      {
-        id: 'bid-opportunity-price',
-        label: '报价预测',
-        description: '预测对手报价并给出报价建议',
-        icon: 'tool',
-      },
-      {
-        id: 'bid-opportunity-enterprise',
-        label: '企业画像',
-        description: '维护企业资质、历史业绩与基本信息',
-        icon: 'briefcase',
       },
     ],
   },
@@ -173,14 +222,21 @@ export function getAppMenuItems(developerMode: boolean): AppMenuItem[] {
   return developerMode ? [...appMenuItems, ...developerMenuItems] : appMenuItems;
 }
 
-export function getSectionOrder(developerMode: boolean): SectionId[] {
-  return getAppMenuItems(developerMode).flatMap((item) => [item.id, ...(item.children?.map((child) => child.id) ?? [])]);
+export function getProductionMenuItems(): AppMenuItem[] {
+  return productionMenuItems;
 }
 
-export function getAppMenuItemById(id: SectionId, developerMode: boolean): AppMenuItem | undefined {
-  return getAppMenuItems(developerMode).find((item) => item.id === id);
+export function getSectionOrder(developerMode: boolean, productionMode: boolean = false): SectionId[] {
+  const items = productionMode ? getProductionMenuItems() : getAppMenuItems(developerMode);
+  return items.flatMap((item) => [item.id, ...(item.children?.map((child) => child.id) ?? [])]);
 }
 
-export function getParentMenuItemBySection(section: SectionId, developerMode: boolean): AppMenuItem | undefined {
-  return getAppMenuItems(developerMode).find((item) => item.id === section || item.children?.some((child) => child.id === section));
+export function getAppMenuItemById(id: SectionId, developerMode: boolean, productionMode: boolean = false): AppMenuItem | undefined {
+  const items = productionMode ? getProductionMenuItems() : getAppMenuItems(developerMode);
+  return items.find((item) => item.id === id);
+}
+
+export function getParentMenuItemBySection(section: SectionId, developerMode: boolean, productionMode: boolean = false): AppMenuItem | undefined {
+  const items = productionMode ? getProductionMenuItems() : getAppMenuItems(developerMode);
+  return items.find((item) => item.id === section || item.children?.some((child) => child.id === section));
 }

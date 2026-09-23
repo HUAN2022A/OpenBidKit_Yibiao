@@ -1,12 +1,13 @@
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { useState, type ComponentType, type ReactElement, type SVGProps } from 'react';
-import { getAppMenuItems, getParentMenuItemBySection } from '../app/menuConfig';
+import { getAppMenuItems, getParentMenuItemBySection, getProductionMenuItems } from '../app/menuConfig';
 import type { SectionId } from '../shared/types/navigation';
 import logoUrl from '../../assets/icon_256.png';
 
 interface SidebarProps {
   activeSection: SectionId;
   developerMode: boolean;
+  productionMode: boolean;
   onSectionChange: (section: SectionId) => void;
 }
 
@@ -22,6 +23,7 @@ const navigationIcons: Record<SectionId, ComponentType<SVGProps<SVGSVGElement>>>
   'duplicate-check': CompareIcon,
   'rejection-check': ShieldIcon,
   'ai-evaluation': BidCheckIcon,
+  'bid-improvement': EditIcon,
   'template-settings': DocumentIcon,
   'my-templates': DocumentIcon,
   'new-template': DocumentIcon,
@@ -41,10 +43,10 @@ const navigationIcons: Record<SectionId, ComponentType<SVGProps<SVGSVGElement>>>
   settings: GearIcon,
 };
 
-function Sidebar({ activeSection, developerMode, onSectionChange }: SidebarProps) {
+function Sidebar({ activeSection, developerMode, productionMode, onSectionChange }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const menuItems = getAppMenuItems(developerMode);
-  const activeParent = getParentMenuItemBySection(activeSection, developerMode);
+  const menuItems = productionMode ? getProductionMenuItems() : getAppMenuItems(developerMode);
+  const activeParent = getParentMenuItemBySection(activeSection, developerMode, productionMode);
 
   return (
     <aside className={`sidebar ${collapsed ? 'is-collapsed' : ''}`}>
@@ -204,6 +206,16 @@ function ShieldIcon(props: SVGProps<SVGSVGElement>) {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
       <path d="M12 3.5 18.5 6v5.4c0 4.25-2.55 7.55-6.5 9.1-3.95-1.55-6.5-4.85-6.5-9.1V6z" />
       <path d="m9 12.2 2 2 4-4.5" />
+    </svg>
+  );
+}
+
+function EditIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
+      <path d="M4.5 19.5h15" />
+      <path d="M16 5.5l2.5 2.5-9 9-3.3.8.8-3.3z" />
+      <path d="m13.5 8 2.5 2.5" />
     </svg>
   );
 }

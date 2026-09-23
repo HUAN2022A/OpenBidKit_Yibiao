@@ -23,5 +23,6 @@ export interface SettingsPageState {
     update_channel: UpdateChannel;
     gpu_hardware_acceleration_enabled: boolean;
     gpu_hardware_acceleration_configured: boolean;
+    production_mode: boolean;
   };
 }

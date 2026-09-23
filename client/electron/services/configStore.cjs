@@ -282,6 +282,7 @@ const defaultConfig = {
   agent_mode_scenarios: defaultAgentModeScenarios,
   agent_auto_answer_enabled: DEFAULT_AGENT_AUTO_ANSWER_ENABLED,
   developer_mode: false,
+  production_mode: false,
   offline_mode: false,
   developer_token_stats_auto_open: false,
   developer_agent_monitor_auto_open: false,
@@ -750,6 +751,7 @@ function normalizeConfig(config) {
       ? defaultConfig.agent_auto_answer_enabled
       : Boolean(source.agent_auto_answer_enabled),
     developer_mode: source.developer_mode === undefined ? defaultConfig.developer_mode : Boolean(source.developer_mode),
+    production_mode: source.production_mode === undefined ? defaultConfig.production_mode : Boolean(source.production_mode),
     offline_mode: source.offline_mode === undefined ? defaultConfig.offline_mode : Boolean(source.offline_mode),
     developer_token_stats_auto_open: source.developer_token_stats_auto_open === undefined ? defaultConfig.developer_token_stats_auto_open : Boolean(source.developer_token_stats_auto_open),
     developer_agent_monitor_auto_open: source.developer_agent_monitor_auto_open === undefined ? defaultConfig.developer_agent_monitor_auto_open : Boolean(source.developer_agent_monitor_auto_open),

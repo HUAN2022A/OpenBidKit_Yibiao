@@ -52,6 +52,7 @@ const pageLabels = {
   'ai-evaluation/documents': 'AI评标 - 导入方案',
   'ai-evaluation/items': 'AI评标 - 开始评标',
   'ai-evaluation/results': 'AI评标 - 评标结果',
+  'bid-improvement': '标书润色',
   'template-settings': '模版设置',
   'my-templates': '模版设置 - 我的模板',
   'my-templates/edit': '模版设置 - 编辑模板',

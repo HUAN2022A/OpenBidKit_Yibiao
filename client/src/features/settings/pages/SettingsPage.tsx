@@ -590,6 +590,7 @@ const initialState: SettingsPageState = {
     update_channel: 'atomgit',
     gpu_hardware_acceleration_enabled: true,
     gpu_hardware_acceleration_configured: true,
+    production_mode: false,
   },
 };
 
@@ -695,6 +696,7 @@ function SettingsPage({ onDeveloperModeChange }: SettingsPageProps) {
           update_channel: normalizeUpdateChannel(config.update_channel),
           gpu_hardware_acceleration_enabled: Boolean(config.gpu_hardware_acceleration_enabled),
           gpu_hardware_acceleration_configured: Boolean(config.gpu_hardware_acceleration_configured),
+          production_mode: Boolean(config.production_mode),
         },
       }));
       setAgentAutoAnswerDraft(Boolean(config.agent_auto_answer_enabled));
@@ -754,6 +756,7 @@ function SettingsPage({ onDeveloperModeChange }: SettingsPageProps) {
       offline_mode: offlineMode,
       developer_token_stats_auto_open: state.general.developer_token_stats_auto_open,
       developer_agent_monitor_auto_open: state.general.developer_agent_monitor_auto_open,
+      production_mode: state.general.production_mode,
     };
   };
 
@@ -909,7 +912,14 @@ function SettingsPage({ onDeveloperModeChange }: SettingsPageProps) {
     }));
   };
 
-  // 切换离线模式：重新加载磁盘上的完整配置，只修改 offline_mode 后立即保存，避免覆盖其他页面的最新配置。
+  const updateProductionMode = (enabled: boolean) => {
+    setState((prev) => ({
+      ...prev,
+      general: { ...prev.general, production_mode: enabled },
+    }));
+  };
+
+  // 切换离线模式：重新加载磁盘上的完整配置,只修改 offline_mode 后立即保存，避免覆盖其他页面的最新配置。
   const updateOfflineMode = async (enabled: boolean) => {
     if (savingOfflineMode) {
       return;
@@ -1643,6 +1653,17 @@ function SettingsPage({ onDeveloperModeChange }: SettingsPageProps) {
                 <span>启用后界面可能更流畅；极少数电脑启用后会闪退，关闭后兼容性更好。修改后需重启生效。</span>
               </div>
               <AppSwitch checked={state.general.gpu_hardware_acceleration_enabled} onCheckedChange={(checked) => updateGpuHardwareAcceleration(checked)} />
+            </label>
+          </div>
+
+          <div className="settings-group-title">界面模式</div>
+          <div className="settings-list">
+            <label className="settings-row">
+              <div className="settings-row-copy">
+                <strong>生产模式</strong>
+                <span>隐藏实验性功能，只展示核心业务模块（方案扩写、标书检查、知识库、模板设置）。修改后需刷新页面生效。</span>
+              </div>
+              <AppSwitch checked={state.general.production_mode} onCheckedChange={(checked) => updateProductionMode(checked)} />
             </label>
           </div>
 

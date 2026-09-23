@@ -15,6 +15,7 @@ const { FEASIBILITY_OUTLINE_AGENT_TASK_KEY } = require('./feasibilityOutlineAgen
 const { runRejectionCheckTask, runRejectionItemsExtractionTask } = require('./rejectionCheckTask.cjs');
 const { runEvaluationTask } = require('./evaluationTask.cjs');
 const { runBidOpportunityParseTask, runBidOpportunityScoreTask, runBidOpportunityPriceTask } = require('./bidOpportunityTask.cjs');
+const { runBidImprovementPolishTask } = require('./bidImprovementPolishTask.cjs');
 const { originalPlanDownstreamTaskTypes } = require('./technicalPlanStore.cjs');
 const {
   clearContent,
@@ -117,6 +118,15 @@ const taskDefinitions = {
     lockPolicy: 'group-exclusive',
     stateKey: 'evaluation',
     field: 'evaluationTask',
+  },
+  'bid-improvement-polish': {
+    label: '标书润色',
+    group: 'bid-improvement',
+    groupLabel: '标书改进',
+    step: 1,
+    lockPolicy: 'group-exclusive',
+    stateKey: 'bidImprovement',
+    field: 'polishTask',
   },
   'bid-opportunity-parse': {
     label: '公告解析',
@@ -683,6 +693,10 @@ function createTaskService({ aiService, agentService, autoConfirmationService, t
       bidOpportunityStore.updateBidOpportunityWithoutReload(partial);
       return;
     }
+    if (definition.stateKey === 'bidImprovement') {
+      bidImprovementStore.updateWorkspaceState(partial);
+      return;
+    }
     technicalPlanStore.updateTechnicalPlanWithoutReload(partial);
   }
 
@@ -704,6 +718,9 @@ function createTaskService({ aiService, agentService, autoConfirmationService, t
     }
     if (definition.stateKey === 'bidOpportunity') {
       return bidOpportunityStore.loadBidOpportunity();
+    }
+    if (definition.stateKey === 'bidImprovement') {
+      return bidImprovementStore.getWorkspaceState();
     }
     return technicalPlanStore.loadTechnicalPlan();
   }
@@ -1667,6 +1684,9 @@ function createTaskService({ aiService, agentService, autoConfirmationService, t
     },
     startEvaluationRun(payload) {
       return startManagedTask('evaluation-run', payload, runEvaluationTask, payload?.workspaceState || {});
+    },
+    startBidImprovementPolish(payload) {
+      return startManagedTask('bid-improvement-polish', payload, runBidImprovementPolishTask);
     },
     startDuplicateAnalysis(payload) {
       if (!duplicateCheckService?.runAnalysisTask) {

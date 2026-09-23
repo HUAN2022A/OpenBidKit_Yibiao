@@ -8,16 +8,17 @@ interface AppShellProps {
   activeSection: SectionId;
   children: ReactNode;
   developerMode: boolean;
+  productionMode: boolean;
   onSectionChange: (section: SectionId) => void;
 }
 
-function AppShell({ activeSection, children, developerMode, onSectionChange }: AppShellProps) {
+function AppShell({ activeSection, children, developerMode, productionMode, onSectionChange }: AppShellProps) {
   const isMac = navigator.platform.toLowerCase().includes('mac');
 
   return (
     <Tooltip.Provider delayDuration={120} skipDelayDuration={80}>
       <div className={`app-shell${isMac ? ' is-mac' : ''}`}>
-        <Sidebar activeSection={activeSection} developerMode={developerMode} onSectionChange={onSectionChange} />
+        <Sidebar activeSection={activeSection} developerMode={developerMode} productionMode={productionMode} onSectionChange={onSectionChange} />
 
         <main className="main-area">
           <AgentRuntimeStatusBar />

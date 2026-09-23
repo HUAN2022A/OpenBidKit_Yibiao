@@ -12,6 +12,7 @@ import DeveloperTestPage from '../features/developer/pages/DeveloperTestPage';
 import ExportFormatPage from '../features/export-format/pages/ExportFormatPage';
 import MyTemplatesPage from '../features/export-format/pages/MyTemplatesPage';
 import DuplicateCheckPage from '../features/duplicate-check/pages/DuplicateCheckPage';
+import BidImprovementPage from '../features/bid-improvement/pages/BidImprovementPage';
 import KnowledgeBasePage from '../features/knowledge-base/pages/KnowledgeBasePage';
 import ImageKnowledgeBasePage from '../features/image-knowledge-base/pages/ImageKnowledgeBasePage';
 import RejectionCheckPage from '../features/rejection-check/pages/RejectionCheckPage';
@@ -24,13 +25,14 @@ import SecondaryMenuPage from '../shared/ui/SecondaryMenuPage';
 interface AppRouterProps {
   activeSection: SectionId;
   developerMode: boolean;
+  productionMode: boolean;
   onDeveloperModeChange: (developerMode: boolean) => void;
   onSectionChange: (section: SectionId) => void;
   registerLeaveGuard?: (guard: ((nextSection?: string) => Promise<boolean>) | null) => void;
 }
 
-function AppRouter({ activeSection, developerMode, onDeveloperModeChange, onSectionChange, registerLeaveGuard }: AppRouterProps) {
-  const activeMenuItem = getAppMenuItemById(activeSection, developerMode);
+function AppRouter({ activeSection, developerMode, productionMode, onDeveloperModeChange, onSectionChange, registerLeaveGuard }: AppRouterProps) {
+  const activeMenuItem = getAppMenuItemById(activeSection, developerMode, productionMode);
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -65,6 +67,8 @@ function AppRouter({ activeSection, developerMode, onDeveloperModeChange, onSect
       return <RejectionCheckPage />;
     case 'ai-evaluation':
       return <EvaluationPage />;
+    case 'bid-improvement':
+      return <BidImprovementPage />;
     case 'my-templates':
       return editingTemplateId
         ? <ExportFormatPage mode="edit" templateId={editingTemplateId} onBack={() => setEditingTemplateId(null)} />

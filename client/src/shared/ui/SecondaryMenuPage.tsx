@@ -130,6 +130,14 @@ function SubMenuIcon({ item }: { item: AppSubMenuItem }) {
           <path d="M9.5 15h3.5" />
         </svg>
       );
+    case 'edit':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <path d="M4.5 19.5h15" />
+          <path d="M16 5.5l2.5 2.5-9 9-3.3.8.8-3.3z" />
+          <path d="m13.5 8 2.5 2.5" />
+        </svg>
+      );
     case 'export':
       return (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">

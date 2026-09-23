@@ -8,6 +8,7 @@ const { registerDonationIpc } = require('./donationIpc.cjs');
 const { registerDuplicateCheckIpc } = require('./duplicateCheckIpc.cjs');
 const { registerEvaluationIpc } = require('./evaluationIpc.cjs');
 const { registerBidOpportunityIpc } = require('./bidOpportunityIpc.cjs');
+const { registerBidImprovementIpc } = require('./bidImprovementIpc.cjs');
 const { registerExportIpc } = require('./exportIpc.cjs');
 const { registerFileIpc } = require('./fileIpc.cjs');
 const { registerKnowledgeBaseIpc } = require('./knowledgeBaseIpc.cjs');
@@ -37,6 +38,8 @@ const { createLicenseService } = require('../services/licenseService.cjs');
 const { createRejectionCheckStore } = require('../services/rejectionCheckStore.cjs');
 const { createEvaluationStore } = require('../services/evaluationStore.cjs');
 const { createBidOpportunityStore } = require('../services/bidOpportunityStore.cjs');
+const { createBidImprovementService } = require('../services/bidImprovementService.cjs');
+const { createBidImprovementStore } = require('../services/bidImprovementStore.cjs');
 const { createSqliteDatabase } = require('../services/sqliteDatabase.cjs');
 const { createSystemFontService } = require('../services/systemFontService.cjs');
 const { clearOrphanedGeneratedImages, clearStalePiTaskArchives, runHistoricalStorageCleanup } = require('../services/storageCleanupService.cjs');
@@ -185,6 +188,20 @@ const workspaceDatabaseChannels = [
   'tasks:start-bid-opportunity-parse',
   'tasks:start-bid-opportunity-score',
   'tasks:start-bid-opportunity-price',
+  'bid-improvement:import-document',
+  'bid-improvement:get-document',
+  'bid-improvement:get-all-documents',
+  'bid-improvement:delete-document',
+  'bid-improvement:get-outline-nodes',
+  'bid-improvement:update-node-content',
+  'bid-improvement:get-polish-history',
+  'bid-improvement:save-polish-result',
+  'bid-improvement:get-workspace-state',
+  'bid-improvement:update-workspace-state',
+  'bid-improvement:clear',
+  'bid-improvement:bridge-to-rejection-check',
+  'bid-improvement:bridge-to-evaluation',
+  'bid-improvement:export-document',
   'knowledge-base:list',
   'knowledge-base:search',
   'knowledge-base:list-image-items',
@@ -214,6 +231,7 @@ const workspaceDatabaseChannels = [
   'tasks:start-feasibility-content',
   'tasks:pause-feasibility-content',
   'tasks:start-feasibility-human-writing',
+  'tasks:start-bid-improvement-polish',
   'tasks:get-active',
   'templates:list',
   'templates:get',
@@ -278,7 +296,7 @@ function registerWorkspaceDatabaseStatusIpc({ mainWindow }) {
   };
 }
 
-function registerWorkspaceDatabaseServices({ app, configStore, aiService, agentService, autoConfirmationService, fileService, openXmlHelperService, updateStatus }) {
+function registerWorkspaceDatabaseServices({ app, configStore, aiService, agentService, autoConfirmationService, fileService, openXmlHelperService, exportService, updateStatus }) {
   const sqliteDatabase = createSqliteDatabase(app, { onStatus: updateStatus });
   runHistoricalStorageCleanup({ app, db: sqliteDatabase.db, configStore, onStatus: updateStatus });
   clearStalePiTaskArchives(app);
@@ -294,6 +312,8 @@ function registerWorkspaceDatabaseServices({ app, configStore, aiService, agentS
   const rejectionCheckStore = createRejectionCheckStore({ app, db: sqliteDatabase.db, fileService, technicalPlanStore, taskLogStore });
   const evaluationStore = createEvaluationStore({ app, db: sqliteDatabase.db, technicalPlanStore, taskLogStore });
   const bidOpportunityStore = createBidOpportunityStore({ app, db: sqliteDatabase.db, fileService, taskLogStore, technicalPlanStore });
+  const bidImprovementStore = createBidImprovementStore(sqliteDatabase.db);
+  const bidImprovementService = createBidImprovementService({ app, db: sqliteDatabase.db, fileService, exportService, rejectionCheckStore, evaluationStore });
   const templateStore = createTemplateStore({ db: sqliteDatabase.db });
   const duplicateCheckService = createDuplicateCheckService({ app, configStore, workspaceStore: duplicateCheckStore });
   const checkResultExportService = createCheckResultExportService({
@@ -303,7 +323,7 @@ function registerWorkspaceDatabaseServices({ app, configStore, aiService, agentS
     duplicateCheckStore,
     evaluationStore,
   });
-  const taskService = createTaskService({ aiService, agentService, autoConfirmationService, technicalPlanStore, rejectionCheckStore, duplicateCheckStore, feasibilityReportStore, knowledgeBaseService, duplicateCheckService, openXmlHelperService, evaluationStore, bidOpportunityStore });
+  const taskService = createTaskService({ aiService, agentService, autoConfirmationService, technicalPlanStore, rejectionCheckStore, duplicateCheckStore, feasibilityReportStore, knowledgeBaseService, duplicateCheckService, openXmlHelperService, evaluationStore, bidOpportunityStore, bidImprovementStore });
   const agentWorkspaceService = createAgentWorkspaceService({ agentService, taskService, technicalPlanStore, feasibilityReportStore });
   agentWorkspaceServiceRef = agentWorkspaceService;
   technicalPlanStore.setAgentWorkspaceChangeListener(() => agentWorkspaceService.emitWorkspacesChanged());
@@ -320,6 +340,7 @@ function registerWorkspaceDatabaseServices({ app, configStore, aiService, agentS
   registerRejectionCheckIpc({ rejectionCheckStore, taskService, checkResultExportService });
   registerEvaluationIpc({ evaluationStore, taskService, checkResultExportService });
   registerBidOpportunityIpc({ bidOpportunityStore, taskService });
+  registerBidImprovementIpc({ bidImprovementService });
   registerTemplateIpc({ templateStore, aiService, configStore });
   registerTaskIpc({ taskService });
   updateStatus({ phase: 'ready', ready: true, message: '本地数据库已就绪' });
@@ -482,7 +503,7 @@ function registerIpcHandlers({ app, mainWindow, checkAndDownloadUpdate, triggerU
     databaseStatus.updateStatus({ phase: 'checking', ready: false, message: '正在检查本地数据库' });
     setTimeout(() => {
       try {
-        registerWorkspaceDatabaseServices({ app, configStore, aiService, agentService, autoConfirmationService, fileService, openXmlHelperService, updateStatus: databaseStatus.updateStatus });
+        registerWorkspaceDatabaseServices({ app, configStore, aiService, agentService, autoConfirmationService, fileService, openXmlHelperService, exportService, updateStatus: databaseStatus.updateStatus });
         setTimeout(() => {
           void agentService.warmup?.().catch((error) => {
             console.warn('[agent] warmup failed', error?.message || String(error));

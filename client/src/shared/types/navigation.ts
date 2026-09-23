@@ -10,6 +10,7 @@ export type SectionId =
   | 'duplicate-check'
   | 'rejection-check'
   | 'ai-evaluation'
+  | 'bid-improvement'
   | 'template-settings'
   | 'my-templates'
   | 'new-template'
@@ -32,7 +33,7 @@ export interface AppSubMenuItem {
   id: SectionId;
   label: string;
   description: string;
-  icon?: 'document' | 'expand' | 'briefcase' | 'compare' | 'shield' | 'code' | 'prompt' | 'file' | 'export' | 'tool';
+  icon?: 'document' | 'expand' | 'briefcase' | 'compare' | 'shield' | 'code' | 'prompt' | 'file' | 'export' | 'tool' | 'edit';
   badge?: string;
 }
 

@@ -1,0 +1,112 @@
+/* 标书提质（bid-improvement）目录树 */
+
+.bid-tree-list {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  overflow: auto;
+  padding: 10px 12px 12px;
+  scrollbar-gutter: stable;
+}
+
+.bid-tree-empty {
+  padding: 24px 16px;
+  color: var(--yb-text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.bid-tree-node {
+  margin-left: calc(var(--bid-tree-level, 0) * 14px);
+}
+
+.bid-tree-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--yb-radius-md);
+  transition: background var(--yb-duration-fast) ease, border-color var(--yb-duration-fast) ease, box-shadow var(--yb-duration-fast) ease;
+}
+
+.bid-tree-item:hover {
+  background: rgba(33, 116, 253, 0.06);
+}
+
+.bid-tree-item.is-selected {
+  background: rgba(33, 116, 253, 0.1);
+  border-color: rgba(33, 116, 253, 0.2);
+  box-shadow: 0 6px 16px rgba(23, 32, 51, 0.05);
+}
+
+.bid-tree-toggle {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  color: var(--yb-primary);
+  background: rgba(33, 116, 253, 0.1);
+  border: 1px solid rgba(33, 116, 253, 0.12);
+  border-radius: var(--yb-radius-sm);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+  transition: transform var(--yb-duration-fast) ease, background var(--yb-duration-fast) ease;
+}
+
+.bid-tree-toggle.is-expanded {
+  transform: rotate(90deg);
+}
+
+.bid-tree-toggle.is-leaf {
+  color: var(--yb-text-muted);
+  background: rgba(152, 162, 179, 0.12);
+  border-color: transparent;
+}
+
+.bid-tree-toggle:disabled {
+  cursor: default;
+}
+
+.bid-tree-toggle:not(:disabled):hover,
+.bid-tree-toggle:focus-visible {
+  background: rgba(33, 116, 253, 0.18);
+  outline: none;
+}
+
+.bid-tree-content {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  padding: 1px 0;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.bid-tree-content:focus-visible {
+  outline: none;
+}
+
+.bid-tree-title {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--yb-text);
+  font-size: 13px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bid-tree-item.is-selected .bid-tree-title {
+  color: var(--yb-primary);
+  font-weight: 700;
+}

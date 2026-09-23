@@ -69,6 +69,10 @@ function registerTaskIpc({ taskService }) {
     taskService.subscribe(event.sender);
     return taskService.startFeasibilityHumanWriting(payload);
   });
+  ipcMain.handle('tasks:start-bid-improvement-polish', (event, payload) => {
+    taskService.subscribe(event.sender);
+    return taskService.startBidImprovementPolish(payload);
+  });
   ipcMain.handle('tasks:get-active', (event) => {
     taskService.subscribe(event.sender);
     return taskService.getActiveTasks();

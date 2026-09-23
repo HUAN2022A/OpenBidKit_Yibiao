@@ -19,6 +19,7 @@ function isManagedWorkbenchSection(section: SectionId) {
 function App() {
   const [activeSection, setActiveSection] = useState<SectionId>('bid-generation');
   const [developerMode, setDeveloperMode] = useState(false);
+  const [productionMode, setProductionMode] = useState(false);
   const leaveGuardRef = useRef<((nextSection?: string) => Promise<boolean>) | null>(null);
 
   useEffect(() => {
@@ -27,6 +28,7 @@ function App() {
     void window.yibiao?.config.load()
       .then((config) => {
         setDeveloperMode(Boolean(config?.developer_mode));
+        setProductionMode(Boolean(config?.production_mode));
         trackConfigUsage({}, config);
       })
       .catch((error) => console.warn('读取开发者模式失败', error));
@@ -43,6 +45,27 @@ function App() {
       setActiveSection('bid-generation');
     }
   }, [activeSection, developerMode]);
+
+  useEffect(() => {
+    // 生产模式下，如果当前页面不在允许列表中，跳转到默认页面
+    if (productionMode) {
+      const allowedSections: SectionId[] = [
+        'existing-plan-expansion',
+        'bid-check',
+        'duplicate-check',
+        'rejection-check',
+        'knowledge-base',
+        'document-knowledge-base',
+        'template-settings',
+        'my-templates',
+        'new-template',
+        'settings',
+      ];
+      if (!allowedSections.includes(activeSection)) {
+        setActiveSection('existing-plan-expansion');
+      }
+    }
+  }, [activeSection, productionMode]);
 
   const requestSectionChange = async (section: SectionId) => {
     if (section === activeSection) {
@@ -63,11 +86,13 @@ function App() {
       <AppShell
         activeSection={activeSection}
         developerMode={developerMode}
+        productionMode={productionMode}
         onSectionChange={(section) => { void requestSectionChange(section); }}
       >
         <AppRouter
           activeSection={activeSection}
           developerMode={developerMode}
+          productionMode={productionMode}
           onDeveloperModeChange={setDeveloperMode}
           onSectionChange={(section) => { void requestSectionChange(section); }}
           registerLeaveGuard={(guard) => {
